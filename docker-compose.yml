@@ -1,0 +1,75 @@
+name: securenotes
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Run ./scripts/init-dev-env.sh first}
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/1433'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    entrypoint: ["/bin/bash", "/bootstrap/bootstrap-db.sh"]
+    environment:
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Run ./scripts/init-dev-env.sh first}
+      NOTES_MIGRATOR_PASSWORD: ${NOTES_MIGRATOR_PASSWORD:?Run ./scripts/init-dev-env.sh first}
+      NOTES_APP_PASSWORD: ${NOTES_APP_PASSWORD:?Run ./scripts/init-dev-env.sh first}
+    volumes:
+      - ./scripts/bootstrap-db.sh:/bootstrap/bootstrap-db.sh:ro
+      - ./database/001_schema.sql:/bootstrap/001_schema.sql:ro
+      - ./database/002_p2.sql:/bootstrap/002_p2.sql:ro
+      - ./database/003_p3.sql:/bootstrap/003_p3.sql:ro
+      - ./database/004_p4.sql:/bootstrap/004_p4.sql:ro
+      - ./database/005_p5.sql:/bootstrap/005_p5.sql:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/SecureNotes.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: "8080"
+      HttpsRedirection__Enabled: "false"
+      SecureNotes__KeyEncryptionKey: ${SECURENOTES_KEK:?Run ./scripts/init-dev-env.sh first}
+      Authentication__Google__ClientId: ${GOOGLE_OIDC_CLIENT_ID:-}
+      Authentication__Google__ClientSecret: ${GOOGLE_OIDC_CLIENT_SECRET:-}
+      Authentication__Google__RedirectUri: ${GOOGLE_OIDC_REDIRECT_URI:-}
+      Authentication__Google__FrontendOrigin: ${GOOGLE_OIDC_FRONTEND_ORIGIN:-http://localhost:5173}
+      ForwardedHeaders__KnownProxies: ${SECURENOTES_TRUSTED_PROXY_IPS:-}
+      ConnectionStrings__SecureNotes: "Server=db,1433;Database=SecureNotes;User Id=notes_app;Password=${NOTES_APP_PASSWORD:?Run ./scripts/init-dev-env.sh first};Encrypt=True;TrustServerCertificate=True;Connect Timeout=5"
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    expose:
+      - "8080"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      VITE_API_PROXY_TARGET: http://api:8080
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "127.0.0.1:5173:5173"
+    restart: unless-stopped
+
+volumes:
+  sqlserver-data:

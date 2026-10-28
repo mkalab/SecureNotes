@@ -1,0 +1,4 @@
+@SecureNotes.Api_HostAddress = https://localhost:7139
+
+GET {{SecureNotes.Api_HostAddress}}/api/health
+Accept: application/json

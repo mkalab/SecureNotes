@@ -1,0 +1,25 @@
+# .NET
+**/bin/
+**/obj/
+*.user
+*.suo
+
+# Node
+**/node_modules/
+**/dist/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+**/appsettings.Local.json
+**/secrets.json
+
+# User-generated files
+uploads/
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

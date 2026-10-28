@@ -2,7 +2,112 @@
 
 SecureNotes là website ghi chú với backend ASP.NET Core, React/Vite và SQL Server. Hợp đồng API hiện tại được ghi trong [docs/openapi.yaml](./docs/openapi.yaml) và chỉ mô tả các endpoint đã triển khai; endpoint roadmap sẽ được thêm khi thực hiện.
 
-## Chạy dự án
+Trong các bước bên dưới, chỉ cần chạy `./scripts/init-dev-env.sh` để khởi tạo cấu hình. Script này tự gọi `./scripts/add-dev-db-credentials.sh` để thêm các biến còn thiếu từ `.env.example` và tạo các mật khẩu/khóa còn trống; không cần chạy script phụ riêng.
+
+## Chạy trên Windows
+
+**Cách khuyến nghị: Docker Desktop.** Cách này chạy DB, API và giao diện trong container, nên không cần cài .NET, Node.js hoặc SQL Server trên Windows.
+
+### Cách 1: Chạy toàn bộ bằng Docker Desktop
+
+**Chuẩn bị:** cài [Git for Windows](https://git-scm.com/downloads/win) và [Docker Desktop](https://www.docker.com/products/docker-desktop/). Mở Docker Desktop, chờ Docker báo đang chạy. Mở thư mục dự án trong File Explorer, nhấp phải và chọn **Open Git Bash here**.
+
+**Lần đầu:** tạo file `.env` bằng Git Bash:
+
+```bash
+./scripts/init-dev-env.sh
+```
+
+File này chứa mật khẩu DB và khóa mã hóa riêng cho máy; script cũng bổ sung các biến mặc định có trong `.env.example`. Nếu `.env` đã tồn tại, script chỉ thêm biến còn thiếu, không ghi đè giá trị đã đặt. Giữ nguyên `.env` cho các lần chạy sau; không commit hoặc chia sẻ. Không xóa hay tạo lại file khi DB đã có dữ liệu mã hóa.
+
+Mở PowerShell tại thư mục gốc dự án (trên File Explorer, gõ `powershell` vào thanh địa chỉ), rồi khởi động:
+
+```powershell
+docker compose up --build
+```
+
+Compose tự chạy SQL Server, khởi tạo schema, API và frontend. Khi các service đã khởi động, mở **http://localhost:5173** và đăng ký tài khoản. Lần sau chạy `docker compose up`; sau khi đổi code cần build lại, chạy `docker compose up --build`.
+
+Dừng bằng `Ctrl+C` hoặc chạy `docker compose down` trong PowerShell khác tại thư mục dự án. Cả hai đều giữ dữ liệu DB. Chỉ chạy `docker compose down -v` nếu muốn xóa DB local. SQL Server Developer có thể cần ít nhất 2 GB RAM.
+
+### Cách 2: Chạy API/frontend trên Windows, DB trong Docker
+
+Dùng cách này khi cần debug code. Cài Docker Desktop, [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) và [Node.js 22.12 trở lên](https://nodejs.org/).
+
+**1. Tạo `.env` một lần** bằng Git Bash tại thư mục dự án:
+
+```bash
+./scripts/init-dev-env.sh
+```
+
+**2. Khởi động DB** từ PowerShell tại thư mục gốc:
+
+```powershell
+docker compose up -d db
+docker compose run --rm db-init
+```
+
+**3. Chạy API** từ PowerShell tại thư mục gốc. Trước lần chạy đầu tiên, tạo và tin cậy chứng chỉ HTTPS phát triển (chỉ cần làm một lần):
+
+```powershell
+dotnet dev-certs https --trust
+```
+
+Nạp `.env` trong mỗi PowerShell mới, đặt cấu hình API, rồi chạy:
+
+```powershell
+Get-Content .env | ForEach-Object {
+    if ($_ -match '^\s*([A-Za-z_][A-Za-z0-9_]*)=(.*)$') {
+        $name = $Matches[1]
+        $value = $Matches[2]
+        [Environment]::SetEnvironmentVariable($name, $value, 'Process')
+    }
+}
+$env:SecureNotes__KeyEncryptionKey = $env:SECURENOTES_KEK
+$env:ConnectionStrings__SecureNotes = "Server=localhost,1433;Database=SecureNotes;User Id=notes_app;Password=$env:NOTES_APP_PASSWORD;Encrypt=True;TrustServerCertificate=True;Connect Timeout=5"
+dotnet run --project backend/SecureNotes.Api --launch-profile https
+```
+
+Giữ cửa sổ API mở. Nếu mở PowerShell mới để chạy API, nạp `.env` và đặt hai biến API như trên lại. Giữ nguyên `.env` và `SECURENOTES_KEK` khi DB đã có dữ liệu mã hóa.
+
+**4. Chạy frontend** trong cửa sổ PowerShell khác, tại thư mục gốc:
+
+```powershell
+Set-Location frontend
+npm ci
+npm run dev
+```
+
+`npm ci` chỉ cần sau khi clone hoặc khi dependencies thay đổi; lần sau chỉ cần `npm run dev`. Mở **http://localhost:5173**. Không chạy API/frontend bằng Compose đồng thời với API/frontend local vì sẽ xung đột cổng.
+
+### Cách 3: Dùng SQL Server cài trên Windows
+
+Cài SQL Server Developer/Express và `sqlcmd`. Bật SQL Server Authentication (mixed mode), TCP/IP và cổng TCP `1433`, rồi khởi động dịch vụ SQL Server. Tạo `.env` bằng Git Bash như Cách 2. Mặc định script dùng login `sa` với mật khẩu `MSSQL_SA_PASSWORD`; bạn có thể dùng login quản trị khác nếu login đó thuộc server role `sysadmin`. Để dùng tài khoản khác, thêm vào `.env`:
+
+```dotenv
+SECURENOTES_SQL_ADMIN_USER=ten_login_quan_tri
+SECURENOTES_SQL_ADMIN_PASSWORD=mat_khau_login_quan_tri
+```
+
+Không để trống hai giá trị này sau dấu `=`. Login quản trị chỉ dùng để tạo database và các login ứng dụng; migration sau đó chạy bằng `notes_migrator`. Nếu SQL Server dùng host/cổng khác, sửa `SECURENOTES_SQL_SERVER` trong `.env`.
+
+Script `scripts/init-local-db.sh` cần Bash. Chạy trong Git Bash tại thư mục dự án, bảo đảm `sqlcmd` và `cygpath` có trong `PATH` của Git Bash, đồng thời SQL Server cho phép kết nối TCP:
+
+```bash
+./scripts/init-local-db.sh
+```
+
+`cygpath` thường được cài cùng Git for Windows; script dùng nó để đổi đường dẫn file SQL tạm sang định dạng Windows trước khi gọi `sqlcmd.exe`. Nếu gặp lỗi mở file `C:` với thông báo `Access is denied`, hãy cập nhật script và kiểm tra `cygpath` bằng lệnh `cygpath -w /tmp`.
+
+Sau đó chạy API bằng PowerShell theo Bước 3 ở Cách 2, nhưng thay dòng connection string bằng:
+
+```powershell
+$env:ConnectionStrings__SecureNotes = "Server=$env:SECURENOTES_SQL_SERVER;Database=SecureNotes;User Id=notes_app;Password=$env:NOTES_APP_PASSWORD;Encrypt=True;TrustServerCertificate=True;Connect Timeout=5"
+```
+
+Frontend chạy như Bước 4 ở Cách 2. Không commit hoặc chia sẻ `.env`.
+
+## Chạy trên Linux
 
 Chọn một trong ba cách sau. **Nếu chỉ muốn chạy thử, dùng Docker Compose (Cách 1).**
 
@@ -25,7 +130,7 @@ Compose tự khởi động SQL Server, tạo/cập nhật schema, API và giao 
 docker compose up --build
 ```
 
-Script tạo `.env` chứa mật khẩu DB và khóa mã hóa riêng cho máy. Giữ nguyên file này cho các lần chạy sau; không commit hoặc chia sẻ. `.env.example` chỉ là file tham khảo, không thay thế `.env`. SQL Server Developer có thể cần ít nhất 2 GB RAM.
+Script tạo `.env` chứa mật khẩu DB và khóa mã hóa riêng cho máy, đồng thời bổ sung các biến mặc định còn thiếu từ `.env.example` mà không ghi đè giá trị hiện có. Giữ nguyên file này cho các lần chạy sau; không commit hoặc chia sẻ. `.env.example` là mẫu cấu hình, không chứa bí mật. SQL Server Developer có thể cần ít nhất 2 GB RAM.
 
 Khi các service đã khởi động, mở **http://localhost:5173** và đăng ký tài khoản.
 
@@ -103,7 +208,7 @@ Script tạo `.env` với mật khẩu ngẫu nhiên cho SQL logins và khóa m�
 ./scripts/init-local-db.sh
 ```
 
-Script tạo database, các login cần thiết, chạy migrations `001`–`005` và kiểm tra quyền truy cập. Chạy lại sau khi cập nhật schema. Trên Windows, có thể dùng WSL hoặc Git Bash; cài `sqlcmd` tại đó và cho phép kết nối TCP từ môi trường đang chạy script.
+Script tạo database, các login cần thiết, chạy migrations `001`–`005` và kiểm tra quyền truy cập. Chạy lại sau khi cập nhật schema. Đảm bảo SQL Server cho phép kết nối TCP từ máy đang chạy script.
 
 **3. Chạy API** trong terminal tại thư mục gốc. Nạp `.env` mỗi khi mở terminal mới:
 
@@ -156,7 +261,7 @@ GOOGLE_OIDC_REDIRECT_URI=http://localhost:5173/signin-oidc
 GOOGLE_OIDC_FRONTEND_ORIGIN=http://localhost:5173
 ```
 
-Các biến OAuth trong `.env.example` là tùy chọn. Có thể thêm các giá trị thật vào `.env` do `init-dev-env.sh` tạo; không đưa Client Secret vào file example hoặc Git.
+Các biến OAuth đã có sẵn trong `.env` sau khi chạy `init-dev-env.sh`; điền giá trị thật nếu muốn bật đăng nhập Google. Không đưa Client Secret vào file example hoặc Git.
 
 `GOOGLE_OIDC_FRONTEND_ORIGIN` phải khớp chính xác một origin trong `Security:AllowedOrigins`. Với chạy local không Docker, đặt secrets bằng:
 

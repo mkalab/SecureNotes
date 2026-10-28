@@ -6,7 +6,7 @@ BEGIN
 END;
 GO
 
-IF ORIGINAL_LOGIN() = N'sa'
+IF IS_SRVROLEMEMBER(N'sysadmin') = 1
 BEGIN
     IF SUSER_ID(N'notes_migrator') IS NULL
     BEGIN

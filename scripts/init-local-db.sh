@@ -21,9 +21,22 @@ set +a
 : "${NOTES_MIGRATOR_PASSWORD:?NOTES_MIGRATOR_PASSWORD is missing from .env}"
 : "${NOTES_APP_PASSWORD:?NOTES_APP_PASSWORD is missing from .env}"
 
+sql_admin_user="${SECURENOTES_SQL_ADMIN_USER:-sa}"
+sql_admin_password="${SECURENOTES_SQL_ADMIN_PASSWORD:-$MSSQL_SA_PASSWORD}"
 sql_server="${SECURENOTES_SQL_SERVER:-localhost,1433}"
 schema_file="$(mktemp)"
 trap 'rm -f "$schema_file"' EXIT
+
+sqlcmd_file_path() {
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*)
+            cygpath -w "$1"
+            ;;
+        *)
+            printf '%s\n' "$1"
+            ;;
+    esac
+}
 
 while IFS= read -r line || [[ -n "$line" ]]; do
     line="${line//__NOTES_MIGRATOR_PASSWORD__/$NOTES_MIGRATOR_PASSWORD}"
@@ -31,12 +44,14 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     printf '%s\n' "$line" >> "$schema_file"
 done < database/001_schema.sql
 
-SQLCMDPASSWORD="$MSSQL_SA_PASSWORD" sqlcmd \
-    -C -S "$sql_server" -d master -U sa -b -i "$schema_file"
+schema_sql_file="$(sqlcmd_file_path "$schema_file")"
+SQLCMDPASSWORD="$sql_admin_password" sqlcmd \
+    -C -S "$sql_server" -d master -U "$sql_admin_user" -b -i "$schema_sql_file"
 
 for migration in database/002_p2.sql database/003_p3.sql database/004_p4.sql database/005_p5.sql; do
+    migration_sql_file="$(sqlcmd_file_path "$migration")"
     SQLCMDPASSWORD="$NOTES_MIGRATOR_PASSWORD" sqlcmd \
-        -C -S "$sql_server" -d SecureNotes -U notes_migrator -b -i "$migration"
+        -C -S "$sql_server" -d SecureNotes -U notes_migrator -b -i "$migration_sql_file"
 done
 
 if SQLCMDPASSWORD="$NOTES_APP_PASSWORD" sqlcmd \

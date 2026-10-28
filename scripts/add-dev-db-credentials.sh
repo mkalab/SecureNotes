@@ -24,6 +24,30 @@ add_password_if_missing() {
     unset password
 }
 
+add_missing_template_settings() {
+    if [ ! -f .env.example ]; then
+        printf '%s\n' 'Missing .env.example; cannot add optional local settings.' >&2
+        exit 1
+    fi
+
+    added_settings=0
+    while IFS= read -r line || [ -n "$line" ]; do
+        case "$line" in
+            ''|\#*) continue ;;
+        esac
+
+        name="${line%%=*}"
+        if ! grep -q "^${name}=" .env; then
+            if [ "$added_settings" -eq 0 ]; then
+                printf '\n%s\n' '# Optional settings from .env.example; edit values if needed.' >> .env
+                added_settings=1
+            fi
+            printf '%s\n' "$line" >> .env
+        fi
+    done < .env.example
+}
+
+add_missing_template_settings
 add_password_if_missing MSSQL_SA_PASSWORD
 add_password_if_missing NOTES_MIGRATOR_PASSWORD
 add_password_if_missing NOTES_APP_PASSWORD

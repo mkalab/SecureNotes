@@ -1,19 +1,140 @@
 # SecureNotes
 
-SecureNotes là website ghi chú với backend ASP.NET Core, React/Vite và SQL Server. Hợp đồng API hiện tại được ghi trong [docs/openapi.yaml](./docs/openapi.yaml) và chỉ mô tả các endpoint đã triển khai; endpoint roadmap cho giai đoạn sau sẽ được thêm khi thực hiện.
+SecureNotes là website ghi chú với backend ASP.NET Core, React/Vite và SQL Server. Hợp đồng API hiện tại được ghi trong [docs/openapi.yaml](./docs/openapi.yaml) và chỉ mô tả các endpoint đã triển khai; endpoint roadmap sẽ được thêm khi thực hiện.
 
-## Chạy bằng Docker Compose
+## Chạy dự án
 
-Yêu cầu Docker Engine và Docker Compose v2. SQL Server chỉ nằm trong mạng nội bộ của Compose; chỉ giao diện web được bind vào `127.0.0.1`.
+Chọn một trong ba cách sau. **Nếu chỉ muốn chạy thử, dùng Docker Compose (Cách 1).**
+
+| Cách chạy | Cần cài | Phù hợp khi |
+|---|---|---|
+| Docker Compose | Docker Engine, Compose v2 | Chạy toàn bộ ứng dụng nhanh |
+| API/frontend local, DB trong Docker | Docker, .NET 10 SDK, Node.js 22.12+ | Phát triển hoặc debug code |
+| Tất cả chạy local | .NET 10 SDK, Node.js 22.12+, SQL Server, `sqlcmd` | Không muốn dùng Docker |
+
+Các lệnh chạy từ thư mục gốc dự án, trừ khi có ghi chú khác.
+
+### Cách 1: Chạy toàn bộ bằng Docker Compose
+
+Compose tự khởi động SQL Server, tạo/cập nhật schema, API và giao diện web. Cần Docker Engine và Docker Compose v2.
+
+**Lần đầu trên máy:**
 
 ```bash
 ./scripts/init-dev-env.sh
 docker compose up --build
 ```
 
-Mở `http://localhost:5173`. Script tạo mật khẩu SQL ngẫu nhiên trong `.env` với quyền file chỉ chủ sở hữu đọc/ghi. Không commit file này. SQL Server Developer có thể cần ít nhất 2 GB RAM.
+Script tạo `.env` chứa mật khẩu DB và khóa mã hóa riêng cho máy. Giữ nguyên file này cho các lần chạy sau; không commit hoặc chia sẻ. `.env.example` chỉ là file tham khảo, không thay thế `.env`. SQL Server Developer có thể cần ít nhất 2 GB RAM.
 
-Đăng ký bằng email và mật khẩu (tối thiểu 12 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt), sau đó tạo ghi chú và danh mục trong giao diện. Mật khẩu được băm PBKDF2-HMAC-SHA256. Phiên đăng nhập dùng cookie HttpOnly, SameSite=Strict, session ID ngẫu nhiên 256 bit lưu phía server dưới dạng hash; mỗi tài khoản có tối đa một phiên với timeout không hoạt động 20 phút và tuyệt đối 8 giờ. Các thao tác thay đổi dữ liệu cần `X-CSRF-TOKEN` và Origin hợp lệ. Môi trường Compose chạy `Development` và chỉ bind frontend vào loopback; cookie Secure được bật ở production qua HTTPS, không dùng cấu hình Compose như môi trường production.
+Khi các service đã khởi động, mở **http://localhost:5173** và đăng ký tài khoản.
+
+**Các lần sau:**
+
+```bash
+docker compose up
+```
+
+Sau khi thay đổi code, chạy `docker compose up --build` để build lại. Dừng bằng `Ctrl+C` hoặc `docker compose down`; cả hai đều giữ dữ liệu DB. Chỉ chạy `docker compose down -v` nếu muốn xóa DB local.
+
+### Cách 2: API/frontend local, SQL Server bằng Docker
+
+API và frontend chạy trên máy; chỉ SQL Server chạy trong Docker. Cần Docker Engine/Compose v2, .NET 10 SDK và Node.js 22.12 trở lên.
+
+**1. Tạo cấu hình (chỉ làm lần đầu):**
+
+```bash
+./scripts/init-dev-env.sh
+```
+
+**2. Khởi động DB và chạy migrations** (mỗi lần cần dùng DB):
+
+```bash
+docker compose up -d db
+docker compose run --rm db-init
+```
+
+**3. Chạy API** trong terminal tại thư mục gốc. Trước lần chạy API đầu tiên, tạo và tin cậy chứng chỉ HTTPS phát triển (chỉ cần làm một lần):
+
+```bash
+dotnet dev-certs https --trust
+```
+
+Sau đó nạp `.env` mỗi lần mở terminal mới và chạy API:
+
+```bash
+set -a
+. ./.env
+set +a
+export SecureNotes__KeyEncryptionKey="$SECURENOTES_KEK"
+export ConnectionStrings__SecureNotes="Server=localhost,1433;Database=SecureNotes;User Id=notes_app;Password=${NOTES_APP_PASSWORD};Encrypt=True;TrustServerCertificate=True;Connect Timeout=5"
+dotnet run --project backend/SecureNotes.Api --launch-profile https
+```
+
+`dotnet run` không tự đọc `.env`; cần nạp lại cấu hình mỗi khi mở terminal mới. Connection string kết nối tới SQL Server ở `localhost,1433`. Giữ nguyên `.env` và `SECURENOTES_KEK` khi DB đã có dữ liệu mã hóa.
+
+**4. Chạy frontend** trong terminal khác:
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+`npm ci` chỉ cần sau khi clone hoặc khi dependencies thay đổi; các lần sau chỉ cần `npm run dev`.
+
+Nếu đang dùng Docker Compose chạy API/frontend, dừng chúng trước khi chạy API/frontend trực tiếp để tránh xung đột cổng. Mở **http://localhost:5173**.
+
+### Cách 3: Chạy toàn bộ local, không Docker
+
+Ở cách này, API, frontend và SQL Server đều chạy trên máy. Cần .NET 10 SDK, Node.js 22.12 trở lên, npm, SQL Server Developer/Express và `sqlcmd`. Bật SQL Server Authentication (mixed mode), TCP/IP và cổng TCP `1433`, rồi khởi động dịch vụ SQL Server.
+
+**1. Tạo cấu hình và bí mật local:**
+
+```bash
+./scripts/init-dev-env.sh
+```
+
+Script tạo `.env` với mật khẩu ngẫu nhiên cho SQL logins và khóa mã hóa. Đặt mật khẩu login `sa` trong SQL Server bằng giá trị `MSSQL_SA_PASSWORD` trong file này để script khởi tạo DB kết nối được. Nếu SQL Server dùng host/cổng khác, sửa `SECURENOTES_SQL_SERVER` trong `.env` (mặc định `localhost,1433`). Không chia sẻ hoặc commit `.env`.
+
+**2. Tạo DB và chạy migrations:**
+
+```bash
+./scripts/init-local-db.sh
+```
+
+Script tạo database, các login cần thiết, chạy migrations `001`–`005` và kiểm tra quyền truy cập. Chạy lại sau khi cập nhật schema. Trên Windows, có thể dùng WSL hoặc Git Bash; cài `sqlcmd` tại đó và cho phép kết nối TCP từ môi trường đang chạy script.
+
+**3. Chạy API** trong terminal tại thư mục gốc. Nạp `.env` mỗi khi mở terminal mới:
+
+```bash
+set -a
+. ./.env
+set +a
+export SecureNotes__KeyEncryptionKey="$SECURENOTES_KEK"
+export ConnectionStrings__SecureNotes="Server=${SECURENOTES_SQL_SERVER};Database=SecureNotes;User Id=notes_app;Password=${NOTES_APP_PASSWORD};Encrypt=True;TrustServerCertificate=True;Connect Timeout=5"
+```
+
+`SECURENOTES_SQL_SERVER` mặc định là `localhost,1433`. Nếu SQL Server dùng cổng khác, cập nhật biến đó trong `.env`. Không ghi connection string chứa mật khẩu vào `appsettings.json` hoặc Git.
+
+```bash
+dotnet dev-certs https --trust
+dotnet run --project backend/SecureNotes.Api --launch-profile https
+```
+
+`dotnet dev-certs https --trust` chỉ cần chạy một lần trên máy. `dotnet run` không tự đọc `.env`, nên phải nạp lại cấu hình trong terminal mới. Nếu SQL Server dùng chứng chỉ TLS hợp lệ, có thể bỏ `TrustServerCertificate=True`; tùy chọn này chỉ dành cho môi trường phát triển.
+
+**4. Chạy frontend** trong terminal khác:
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+`npm ci` chỉ cần sau khi clone hoặc khi dependencies thay đổi; các lần sau chạy `npm run dev`. Mở **http://localhost:5173**. Giữ nguyên `.env` và `SECURENOTES_KEK`; thay hoặc mất khóa này có thể làm dữ liệu đã mã hóa không thể giải mã.
+
+Sau khi ứng dụng chạy, mở giao diện và đăng ký bằng email cùng mật khẩu (tối thiểu 12 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt), rồi tạo ghi chú và danh mục. Mật khẩu được băm PBKDF2-HMAC-SHA256. Phiên đăng nhập dùng cookie HttpOnly, SameSite=Strict, session ID ngẫu nhiên 256 bit lưu phía server dưới dạng hash; mỗi tài khoản có tối đa một phiên với timeout idle 20 phút và tuyệt đối 8 giờ. Các thao tác thay đổi dữ liệu cần `X-CSRF-TOKEN` và Origin hợp lệ. Cấu hình Compose chạy ở `Development`, không dùng để triển khai production.
 
 API giới hạn body ở 1 MiB, rate limit đăng nhập/đăng ký và trả lỗi chung khi đăng nhập thất bại. Security headers được thêm cho API và frontend dev/preview; mọi API response không được cache. Cấu hình production phải đặt `Security:AllowedOrigins` chính xác cho các origin frontend công khai, dùng HTTPS và không cho phép origin wildcard.
 
@@ -34,6 +155,8 @@ GOOGLE_OIDC_CLIENT_SECRET=...
 GOOGLE_OIDC_REDIRECT_URI=http://localhost:5173/signin-oidc
 GOOGLE_OIDC_FRONTEND_ORIGIN=http://localhost:5173
 ```
+
+Các biến OAuth trong `.env.example` là tùy chọn. Có thể thêm các giá trị thật vào `.env` do `init-dev-env.sh` tạo; không đưa Client Secret vào file example hoặc Git.
 
 `GOOGLE_OIDC_FRONTEND_ORIGIN` phải khớp chính xác một origin trong `Security:AllowedOrigins`. Với chạy local không Docker, đặt secrets bằng:
 
@@ -63,37 +186,6 @@ docker compose up -d --build api frontend
 API mã hóa dữ liệu legacy trước khi bắt đầu phục vụ request; nếu migration không hoàn tất, API không khởi động.
 
 Dự án không cung cấp baseline cố ý dễ tổn thương để triển khai hoặc thử trên mạng.
-
-Dừng bằng `Ctrl+C`; chạy `docker compose down` để dọn container và giữ dữ liệu DB. Chỉ dùng `docker compose down -v` khi chủ động muốn xóa cả dữ liệu DB local.
-
-## Chạy local không dùng Docker
-
-Yêu cầu .NET 10 SDK, Node.js 22 (tối thiểu 22.12.0) và npm. Phiên bản Node được khai báo trong `.nvmrc`; nếu dùng nvm, chạy `nvm install` và `nvm use` ở thư mục gốc. Tin cậy chứng chỉ HTTPS phát triển một lần:
-
-```bash
-dotnet dev-certs https --trust
-```
-
-Chạy API và frontend trong hai terminal riêng:
-
-```bash
-dotnet run --project backend/SecureNotes.Api --launch-profile https
-```
-
-```bash
-cd frontend && npm ci && npm run dev
-```
-
-Mở `http://localhost:5173`. Frontend gọi `/api/health` qua Vite proxy tới API HTTPS ở `https://localhost:7139`.
-API local cũng cần `SecureNotes__KeyEncryptionKey` là base64 của đúng 32 byte và cơ sở dữ liệu đã chạy các migration `database/001_schema.sql` đến `database/005_p5.sql`. Dùng cùng KEK cho mọi lần chạy và sao lưu giá trị đó riêng khỏi DB.
-
-Kiểm tra trực tiếp API:
-
-```bash
-curl --insecure https://localhost:7139/api/health
-```
-
-`--insecure` chỉ dùng cho chứng chỉ phát triển local. Không dùng tùy chọn này trong production.
 
 ## Kiểm tra build
 

@@ -2,8 +2,6 @@
 
 SecureNotes là website ghi chú với backend ASP.NET Core, React/Vite và SQL Server. Hợp đồng API hiện tại được ghi trong [docs/openapi.yaml](./docs/openapi.yaml) và chỉ mô tả các endpoint đã triển khai; endpoint roadmap sẽ được thêm khi thực hiện.
 
-Trong các bước bên dưới, chỉ cần chạy `./scripts/init-dev-env.sh` để khởi tạo cấu hình. Script này tự gọi `./scripts/add-dev-db-credentials.sh` để thêm các biến còn thiếu từ `.env.example` và tạo các mật khẩu/khóa còn trống; không cần chạy script phụ riêng.
-
 ## Chạy trên Windows
 
 **Cách khuyến nghị: Docker Desktop.** Cách này chạy DB, API và giao diện trong container, nên không cần cài .NET, Node.js hoặc SQL Server trên Windows.
@@ -47,13 +45,13 @@ docker compose up -d db
 docker compose run --rm db-init
 ```
 
-**3. Chạy API** từ PowerShell tại thư mục gốc. Trước lần chạy đầu tiên, tạo và tin cậy chứng chỉ HTTPS phát triển (chỉ cần làm một lần):
+**3. Chạy API** từ PowerShell tại thư mục gốc của dự án. Trước lần chạy đầu tiên, tạo và tin cậy chứng chỉ HTTPS phát triển (chỉ cần làm một lần):
 
 ```powershell
 dotnet dev-certs https --trust
 ```
 
-Nạp `.env` trong mỗi PowerShell mới, đặt cấu hình API, rồi chạy:
+`.env` là file văn bản lưu các biến cấu hình. Khối lệnh sau đọc từng dòng `TEN_BIEN=gia_tri` trong file và đưa vào môi trường của **cửa sổ PowerShell hiện tại**; đây là thao tác “nạp `.env`”. Chạy khối này mỗi khi mở PowerShell mới để chạy API:
 
 ```powershell
 Get-Content .env | ForEach-Object {
@@ -68,10 +66,10 @@ $env:ConnectionStrings__SecureNotes = "Server=localhost,1433;Database=SecureNote
 dotnet run --project backend/SecureNotes.Api --launch-profile https
 ```
 
-Giữ cửa sổ API mở. Nếu mở PowerShell mới để chạy API, nạp `.env` và đặt hai biến API như trên lại. Giữ nguyên `.env` và `SECURENOTES_KEK` khi DB đã có dữ liệu mã hóa.
+Lệnh `dotnet run` chạy API ở tiền cảnh, vì vậy hãy để cửa sổ đó mở trong lúc sử dụng ứng dụng; nhấn `Ctrl+C` để dừng. Các biến môi trường chỉ tồn tại trong cửa sổ PowerShell đã nạp `.env`. Nếu chạy API từ cửa sổ mới, chỉ cần chạy lại khối lệnh trên (khối lệnh sẽ tự đặt lại 2 biến API SecureNotes__KeyEncryptionKey và SECURENOTES_KEK). Giữ nguyên file `.env` và giá trị `SECURENOTES_KEK` khi DB đã có dữ liệu mã hóa.
 
 **4. Chạy frontend** trong cửa sổ PowerShell khác, tại thư mục gốc:
-
+nạp `.env` và bao gồm nạp `.env` đặt hai biến API ở trên.
 ```powershell
 Set-Location frontend
 npm ci
@@ -99,13 +97,28 @@ Script `scripts/init-local-db.sh` cần Bash. Chạy trong Git Bash tại thư m
 
 `cygpath` thường được cài cùng Git for Windows; script dùng nó để đổi đường dẫn file SQL tạm sang định dạng Windows trước khi gọi `sqlcmd.exe`. Nếu gặp lỗi mở file `C:` với thông báo `Access is denied`, hãy cập nhật script và kiểm tra `cygpath` bằng lệnh `cygpath -w /tmp`.
 
-Sau đó chạy API bằng PowerShell theo Bước 3 ở Cách 2, nhưng thay dòng connection string bằng:
+**Chạy API:** mở PowerShell tại thư mục gốc dự án (thư mục chứa `README.md` và `docker-compose.yml`). Trước lần chạy đầu tiên, tạo chứng chỉ HTTPS phát triển một lần:
 
 ```powershell
-$env:ConnectionStrings__SecureNotes = "Server=$env:SECURENOTES_SQL_SERVER;Database=SecureNotes;User Id=notes_app;Password=$env:NOTES_APP_PASSWORD;Encrypt=True;TrustServerCertificate=True;Connect Timeout=5"
+dotnet dev-certs https --trust
 ```
 
-Frontend chạy như Bước 4 ở Cách 2. Không commit hoặc chia sẻ `.env`.
+`.env` lưu cấu hình trên đĩa; khối lệnh dưới đây nạp các biến vào cửa sổ PowerShell hiện tại. Chạy lại trong mỗi PowerShell mới, rồi đặt khóa mã hóa và connection string trỏ đến SQL Server local:
+
+```powershell
+Get-Content .env | ForEach-Object {
+    if ($_ -match '^\s*([A-Za-z_][A-Za-z0-9_]*)=(.*)$') {
+        $name = $Matches[1]
+        $value = $Matches[2]
+        [Environment]::SetEnvironmentVariable($name, $value, 'Process')
+    }
+}
+$env:SecureNotes__KeyEncryptionKey = $env:SECURENOTES_KEK
+$env:ConnectionStrings__SecureNotes = "Server=$env:SECURENOTES_SQL_SERVER;Database=SecureNotes;User Id=notes_app;Password=$env:NOTES_APP_PASSWORD;Encrypt=True;TrustServerCertificate=True;Connect Timeout=5"
+dotnet run --project backend/SecureNotes.Api --launch-profile https
+```
+
+`dotnet run` chạy API ở tiền cảnh; để cửa sổ mở và nhấn `Ctrl+C` để dừng. **Chạy frontend** như Bước 4 ở Cách 2: mở PowerShell khác tại thư mục gốc, chạy `Set-Location frontend`, rồi `npm run dev` (chạy `npm ci` sau clone hoặc khi dependencies đổi). Mở **http://localhost:5173**. Không commit hoặc chia sẻ `.env`.
 
 ## Chạy trên Linux
 

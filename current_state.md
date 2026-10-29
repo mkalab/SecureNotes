@@ -11,7 +11,7 @@
 - Khai báo Node.js `>=22.12.0 <23`; môi trường đã dùng Node.js 22.
 - Thêm API health, ứng dụng React/Vite, OpenAPI, Dockerfile và Docker Compose.
 - SQL Server healthy, frontend chạy tại `http://localhost:5173`, health endpoint qua proxy hoạt động.
-- Hợp đồng API ban đầu do trợ lý tự phác thảo từ roadmap, không phải hợp đồng được người dùng cung cấp. Hiện `docs/openapi.yaml` được đồng bộ với các endpoint đã triển khai đến P6.
+- Hợp đồng API ban đầu do trợ lý tự phác thảo từ roadmap, không phải hợp đồng được người dùng cung cấp. Hiện `docs/openapi.yaml` được đồng bộ với các endpoint đã triển khai đến P7.
 
 ## P1 — CSDL nền tảng và phân quyền: hoàn thành
 
@@ -98,7 +98,7 @@
 - Frontend trả HTTP 200; `/api/health` trả `ok`; `/api/health/ready` trả `ready`; `/api/auth/me` trả 204 khi chưa đăng nhập.
 - Giao diện đã mở và đăng nhập thử trong browser; tài khoản và ghi chú tạm dùng cho smoke test đã được dọn khỏi DB.
 - OpenAPI YAML, Compose config, shell syntax và `git diff --check` đều hợp lệ.
-- Hợp đồng OpenAPI có 22 path; Swagger runtime sinh tài liệu hợp lệ và có đủ ba path attachment.
+- Tại mốc P6, hợp đồng OpenAPI có 22 path; Swagger runtime sinh tài liệu hợp lệ và có đủ ba path attachment.
 - `./scripts/test-p2-smoke.sh` — tất cả kiểm tra đăng ký/đăng nhập, CSRF, CRUD, tìm kiếm, ghi chú con, URL an toàn và phân quyền giữa hai tài khoản đều đạt; dữ liệu test được dọn sau khi chạy.
 - `./scripts/test-p2-smoke.sh` sau P3 — đạt: headers API/frontend, cookie flags, validation/password policy, Origin/CSRF, session rotation/revocation on logout, lockout/error uniformity và thời gian tối thiểu cho email có/không tồn tại, GUID công khai, 1 MiB body cap, URL scheme, spoofed UserId, sở hữu chéo, phản ứng thu hồi session sau vi phạm lặp; dọn account test thành công, audit log được giữ lại.
 - `./scripts/test-p2-smoke.sh` sau P4 — đạt toàn bộ luồng P2/P3 và xác nhận note/checklist round-trip, search sau giải mã, cột plaintext rỗng, nonce khác nhau giữa các trường, ciphertext cùng wrapped DEK có độ dài hợp lệ.
@@ -113,7 +113,7 @@
 - API và frontend trả security headers mong đợi; trình duyệt tải được trang đăng nhập với CSP đang bật.
 - `docs/openapi.yaml` parse được thành YAML; `docker compose config --quiet`, `bash -n scripts/bootstrap-db.sh scripts/init-local-db.sh` và `git diff --check` hợp lệ.
 - Release build API và production build frontend thành công; `./scripts/test-p2-smoke.sh`, hai smoke test P6, health/ready API và kiểm tra Swagger runtime đều đạt.
-- `./scripts/test-p7-smoke.sh` đạt toàn bộ luồng P7; migration chạy lặp lại thành công, Swagger runtime tạo đủ các endpoint mới, health endpoint trả `ready`.
+- `./scripts/test-p7-smoke.sh` đạt toàn bộ luồng P7, gồm kill switch tắt/mở; migration chạy lặp lại thành công, Swagger runtime có 28 path gồm đủ endpoint P7, health endpoint trả `ready`.
 - Build .NET còn cảnh báo dependency bắc cầu `System.Security.Cryptography.Pkcs` 9.0.18 có GHSA-846f-f764-76mx (High) và GHSA-2fmv-rv2c-59x7 (Moderate); chưa cập nhật dependency trong phạm vi P3.
 
 ## Giới hạn và việc còn lại

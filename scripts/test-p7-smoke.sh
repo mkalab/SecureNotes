@@ -52,6 +52,9 @@ cleanup() {
     if [[ "$sharing_override" == 1 ]]; then
         SECURENOTES_SHARING_ENABLED="$sharing_enabled" docker compose up -d --force-recreate api \
             >/dev/null 2>&1 || true
+        wait_for_api || true
+        login_test_user "$cookie_one" "$email_one" || true
+        login_test_user "$cookie_two" "$email_two" || true
     fi
 
     local token
@@ -130,6 +133,16 @@ request_post() {
     fi
     args+=(--data "$body")
     last_status="$(curl "${args[@]}" "$base_url$path")"
+}
+
+login_test_user() {
+    local jar="$1"
+    local email="$2"
+    rm -f "$jar"
+    : > "$jar"
+    request_post "$jar" /api/auth/login \
+        "{\"email\":\"$email\",\"password\":\"$test_password\"}"
+    [[ "$last_status" == 200 ]]
 }
 
 expect_status() {
@@ -343,6 +356,10 @@ sharing_override=1
 wait_for_api
 last_status="$(curl -sS -o "$response_file" -w '%{http_code}' "$base_url/api/shared/$view_token")"
 expect_status 503 'disable public share access with the feature kill switch'
+if ! login_test_user "$cookie_one" "$email_one"; then
+    printf '%s\n' 'Could not reauthenticate after restarting the API for the kill-switch test.' >&2
+    exit 1
+fi
 request_post "$cookie_one" "/api/notes/$note_id/shares" \
     '{"permission":"view","expiresInHours":24}'
 expect_status 503 'disable share creation with the feature kill switch'
@@ -350,6 +367,11 @@ expect_status 503 'disable share creation with the feature kill switch'
 SECURENOTES_SHARING_ENABLED="$sharing_enabled" docker compose up -d --force-recreate api
 sharing_override=0
 wait_for_api
+if ! login_test_user "$cookie_one" "$email_one" \
+    || ! login_test_user "$cookie_two" "$email_two"; then
+    printf '%s\n' 'Could not reauthenticate after restoring the sharing configuration.' >&2
+    exit 1
+fi
 printf '%s\n' 'PASS sharing kill switch restored from local configuration'
 
 printf '%s\n' 'P7 share-link smoke tests passed.'

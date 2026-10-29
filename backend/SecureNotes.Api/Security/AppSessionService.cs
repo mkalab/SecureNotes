@@ -12,22 +12,32 @@ public sealed class AppSessionService(ISessionRepository sessions)
         Guid userId,
         string email,
         string role,
+        bool twoFactorVerified,
         CancellationToken cancellationToken)
     {
         var token = SessionToken.Create();
         var issuedAtUtc = DateTime.UtcNow;
         var expiresAtUtc = issuedAtUtc.AddHours(8);
-        await sessions.CreateAsync(userId, SessionToken.Hash(token), expiresAtUtc, cancellationToken);
+        await sessions.CreateAsync(
+            userId,
+            SessionToken.Hash(token),
+            expiresAtUtc,
+            twoFactorVerified,
+            cancellationToken);
 
         try
         {
-            var claims = new[]
+            var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
                 new Claim(ClaimTypes.Email, email),
                 new Claim(ClaimTypes.Role, role),
                 new Claim("session_id", token)
             };
+            if (twoFactorVerified)
+            {
+                claims.Add(new Claim("two_factor_verified", "true"));
+            }
             var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             await context.SignInAsync(
                 CookieAuthenticationDefaults.AuthenticationScheme,

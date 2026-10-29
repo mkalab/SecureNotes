@@ -1306,3 +1306,151 @@ button {
     padding: 16px 10px;
   }
 }
+
+.security-settings,
+.google-link-settings {
+  width: 100%;
+  margin-bottom: 12px;
+  color: #d7dbea;
+  font-size: 0.76rem;
+}
+
+.security-settings summary,
+.google-link-settings summary {
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.security-settings p,
+.security-settings label,
+.security-form label,
+.google-link-settings label {
+  color: #c1c8d8;
+  font-size: 0.72rem;
+}
+
+.security-form {
+  display: grid;
+  gap: 7px;
+  margin: 10px 0;
+}
+
+.security-form input {
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #39445b;
+  border-radius: 6px;
+  background: #1d2940;
+  color: #f8fafc;
+}
+
+.totp-secret {
+  overflow-wrap: anywhere;
+  color: #fff;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+}
+
+.totp-uri {
+  overflow-wrap: anywhere;
+  color: #9fa9bc !important;
+  font-size: 0.64rem !important;
+}
+
+.recovery-codes ul {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding-left: 14px;
+}
+
+.recovery-codes code {
+  color: #fff;
+  font-size: 0.62rem;
+}
+
+.security-settings .secondary-button,
+.google-link-settings .secondary-button {
+  min-height: 32px;
+  padding: 5px 8px;
+  font-size: 0.68rem;
+}
+
+.admin-panel {
+  display: grid;
+  gap: 28px;
+  padding-bottom: 30px;
+}
+
+.admin-panel > section {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid #e6e9ef;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.admin-panel h2 {
+  margin: 0 0 14px;
+  color: #222b3d;
+  font-size: 1rem;
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: #394255;
+  font-size: 0.76rem;
+  text-align: left;
+}
+
+.admin-table th,
+.admin-table td {
+  max-width: 340px;
+  padding: 10px 9px;
+  border-bottom: 1px solid #edf0f4;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+
+.admin-table th {
+  color: #717a8d;
+  font-size: 0.69rem;
+  font-weight: 700;
+}
+
+.admin-table button {
+  padding: 5px 8px;
+  border: 1px solid #dfe3eb;
+  border-radius: 6px;
+  background: #fff;
+  color: #5148c7;
+  font-size: 0.69rem;
+}
+
+.admin-table button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+@media (max-width: 760px) {
+  .security-settings,
+  .google-link-settings {
+    flex: 1 1 100%;
+  }
+
+  .admin-panel > section {
+    padding: 13px;
+  }
+}

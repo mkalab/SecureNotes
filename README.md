@@ -97,6 +97,8 @@ Script `scripts/init-local-db.sh` cần Bash. Chạy trong Git Bash tại thư m
 
 `cygpath` thường được cài cùng Git for Windows; script dùng nó để đổi đường dẫn file SQL tạm sang định dạng Windows trước khi gọi `sqlcmd.exe`. Nếu gặp lỗi mở file `C:` với thông báo `Access is denied`, hãy cập nhật script và kiểm tra `cygpath` bằng lệnh `cygpath -w /tmp`.
 
+Nếu API báo `Could not find stored procedure 'app.DeleteExpiredNoteAttachmentReservations'`, DB chưa có migration P6. Mở Git Bash tại thư mục gốc của repo mới nhất và chạy lại `./scripts/init-local-db.sh`; đợi thông báo `Local SQL Server database is ready`, sau đó chạy API lại từ PowerShell. Không cần xóa database hoặc tạo lại `.env`; script giữ dữ liệu hiện có và áp dụng các migrations còn thiếu.
+
 **Chạy API:** mở PowerShell tại thư mục gốc dự án (thư mục chứa `README.md` và `docker-compose.yml`). Trước lần chạy đầu tiên, tạo chứng chỉ HTTPS phát triển một lần:
 
 ```powershell
@@ -221,7 +223,7 @@ Script tạo `.env` với mật khẩu ngẫu nhiên cho SQL logins và khóa m�
 ./scripts/init-local-db.sh
 ```
 
-Script tạo database, các login cần thiết, chạy migrations `001`–`005` và kiểm tra quyền truy cập. Chạy lại sau khi cập nhật schema. Đảm bảo SQL Server cho phép kết nối TCP từ máy đang chạy script.
+Script tạo database nếu chưa có, tạo các login cần thiết, chạy/cập nhật migrations `001`–`007` và kiểm tra quyền truy cập. Chạy lại sau khi cập nhật mã nguồn để áp dụng migrations mới; script không xóa dữ liệu hiện có. Đảm bảo SQL Server cho phép kết nối TCP từ máy đang chạy script.
 
 **3. Chạy API** trong terminal tại thư mục gốc. Nạp `.env` mỗi khi mở terminal mới:
 
@@ -273,6 +275,16 @@ Mở ghi chú rồi tạo link với quyền **Chỉ xem** hoặc **Được s�
 Link chỉ xem cho phép đọc nội dung dạng text và tải tệp đính kèm của đúng ghi chú. Link sửa yêu cầu người nhận đăng nhập và chỉ sửa được tiêu đề/nội dung; không cấp quyền tải lên/xóa tệp hay thay đổi thuộc tính ghi chú. Các trang link không render HTML/Markdown, phản hồi API không được cache và truy vấn link bị giới hạn theo IP. Có thể tắt nhanh bằng `SECURENOTES_SHARING_ENABLED=false` trong `.env`, sau đó khởi động lại API.
 
 Migration `database/007_p7.sql` được tự động áp dụng khi Compose khởi tạo DB. Để kiểm tra token hash, quyền view/edit, đăng nhập, thu hồi/hết hạn, phạm vi file, audit và rate limit, chạy `./scripts/test-p7-smoke.sh` từ Git Bash trên Windows hoặc terminal Linux khi stack đang hoạt động. Script tự dọn dữ liệu test.
+
+### Quản trị và nhật ký (P8)
+
+Mọi tài khoản mới có vai trò `user`; trường `role` gửi thêm khi đăng ký bị từ chối. Để tạo admin: đăng nhập tài khoản cần cấp quyền, mở **Xác minh hai bước** ở thanh bên và bật TOTP; sau đó tại Git Bash/terminal Linux ở thư mục gốc chạy `./scripts/grant-admin.sh email@example.com`. Script chỉ nhận email tường minh, chỉ cấp admin cho tài khoản đã bật 2FA, thu hồi các phiên hiện tại và ghi audit. Đăng nhập lại bằng mật khẩu hoặc Google rồi xác minh mã TOTP; mã dự phòng dùng một lần có thể dùng khi mất ứng dụng xác thực. Admin không thể tắt 2FA trong khi còn vai trò admin.
+
+Nút **Quản trị** chỉ xuất hiện với admin đã xác minh 2FA trong phiên hiện tại. Bảng này cho phép xem danh sách tài khoản, khóa/mở khóa, buộc đăng xuất, xem nhật ký và thu hồi link chia sẻ; không có API đọc nội dung ghi chú hay tệp. Vai trò được đọc lại từ DB ở mỗi request đã xác thực nên thay đổi role/khóa tài khoản có hiệu lực ngay.
+
+Audit log ghi các sự kiện đăng nhập, khóa tài khoản, xác minh hai bước, liên kết Google, tải tệp, chia sẻ và thao tác admin. `notes_app` bị từ chối UPDATE/DELETE trên `dbo.audit_logs`. Log ứng dụng Serilog được xoay theo ngày, giới hạn 10 MiB mỗi file và giữ tối đa 14 file; Compose lưu trong volume `api-logs` (độc lập với DB/file đính kèm). Không ghi request body, mật khẩu, mã TOTP/recovery, token chia sẻ hay nội dung ghi chú. Chuỗi băm audit là mục COULD của roadmap, chưa triển khai.
+
+Migration `database/008_p8.sql` được áp dụng tự động bởi Compose; khi dùng SQL Server local chạy `./scripts/init-local-db.sh` từ Git Bash để cập nhật. Kiểm tra RBAC, MFA, audit append-only và hành động admin bằng `./scripts/test-p8-smoke.sh` khi stack Compose đang chạy. Script tạo và tự dọn tài khoản/dữ liệu thử nghiệm.
 
 ### Bật đăng nhập Google (P5)
 

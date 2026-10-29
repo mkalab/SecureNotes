@@ -1,5 +1,6 @@
 using System.Data;
 using Microsoft.Data.SqlClient;
+using SecureNotes.Api.Models;
 
 namespace SecureNotes.Api.Data;
 
@@ -9,6 +10,7 @@ public sealed class SqlSessionRepository(IConfiguration configuration) : ISessio
         Guid userId,
         byte[] sessionIdHash,
         DateTime expiresAtUtc,
+        bool twoFactorVerified,
         CancellationToken cancellationToken)
     {
         await using var connection = CreateConnection();
@@ -20,6 +22,7 @@ public sealed class SqlSessionRepository(IConfiguration configuration) : ISessio
         command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.UniqueIdentifier) { Value = userId });
         command.Parameters.Add(new SqlParameter("@SessionIdHash", SqlDbType.Binary, 32) { Value = sessionIdHash });
         command.Parameters.Add(new SqlParameter("@ExpiresAtUtc", SqlDbType.DateTime2) { Value = expiresAtUtc });
+        command.Parameters.Add(new SqlParameter("@TwoFactorVerified", SqlDbType.Bit) { Value = twoFactorVerified });
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
@@ -40,6 +43,35 @@ public sealed class SqlSessionRepository(IConfiguration configuration) : ISessio
         command.Parameters.Add(new SqlParameter("@IdleTimeoutMinutes", SqlDbType.Int) { Value = idleTimeoutMinutes });
         var result = await command.ExecuteScalarAsync(cancellationToken);
         return result is true;
+    }
+
+    public async Task<SessionAuthorization?> ValidateAndGetAuthorizationAsync(
+        byte[] sessionIdHash,
+        DateTime nowUtc,
+        int idleTimeoutMinutes,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new SqlCommand("app.ValidateAndTouchUserSessionWithPrincipal", connection)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+        command.Parameters.Add(new SqlParameter("@SessionIdHash", SqlDbType.Binary, 32) { Value = sessionIdHash });
+        command.Parameters.Add(new SqlParameter("@NowUtc", SqlDbType.DateTime2) { Value = nowUtc });
+        command.Parameters.Add(new SqlParameter("@IdleTimeoutMinutes", SqlDbType.Int) { Value = idleTimeoutMinutes });
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        return new SessionAuthorization(
+            reader.GetGuid(reader.GetOrdinal("UserId")),
+            reader.GetString(reader.GetOrdinal("Email")),
+            reader.GetString(reader.GetOrdinal("Role")),
+            reader.GetBoolean(reader.GetOrdinal("TwoFactorEnabled")),
+            reader.GetBoolean(reader.GetOrdinal("TwoFactorVerified")));
     }
 
     public async Task<bool> RecordSecurityViolationAsync(

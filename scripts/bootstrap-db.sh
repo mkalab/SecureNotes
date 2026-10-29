@@ -35,6 +35,9 @@ then
     SQLCMDPASSWORD="$NOTES_MIGRATOR_PASSWORD" "$sqlcmd" \
         -C -S db,1433 -d SecureNotes -U notes_migrator -b \
         -i /bootstrap/007_p7.sql
+    SQLCMDPASSWORD="$NOTES_MIGRATOR_PASSWORD" "$sqlcmd" \
+        -C -S db,1433 -d SecureNotes -U notes_migrator -b \
+        -i /bootstrap/008_p8.sql
 else
     SQLCMDPASSWORD="$MSSQL_SA_PASSWORD" "$sqlcmd" \
         -C -S db,1433 -d master -U sa -b \
@@ -57,6 +60,9 @@ else
     SQLCMDPASSWORD="$NOTES_MIGRATOR_PASSWORD" "$sqlcmd" \
         -C -S db,1433 -d SecureNotes -U notes_migrator -b \
         -i /bootstrap/007_p7.sql
+    SQLCMDPASSWORD="$NOTES_MIGRATOR_PASSWORD" "$sqlcmd" \
+        -C -S db,1433 -d SecureNotes -U notes_migrator -b \
+        -i /bootstrap/008_p8.sql
 fi
 
 if SQLCMDPASSWORD="$NOTES_APP_PASSWORD" "$sqlcmd" \
@@ -64,6 +70,13 @@ if SQLCMDPASSWORD="$NOTES_APP_PASSWORD" "$sqlcmd" \
     -Q "SELECT TOP (1) UserId FROM dbo.users;" >/dev/null 2>&1
 then
     printf '%s\n' 'P1 permission check failed: notes_app can read dbo.users directly.' >&2
+    exit 1
+fi
+if SQLCMDPASSWORD="$NOTES_APP_PASSWORD" "$sqlcmd" \
+    -C -S db,1433 -d SecureNotes -U notes_app -b \
+    -Q "UPDATE dbo.audit_logs SET Action = Action WHERE 1 = 0;" >/dev/null 2>&1
+then
+    printf '%s\n' 'P8 permission check failed: notes_app can modify audit logs.' >&2
     exit 1
 fi
 if SQLCMDPASSWORD="$NOTES_APP_PASSWORD" "$sqlcmd" \
@@ -103,5 +116,4 @@ SQLCMDPASSWORD="$NOTES_APP_PASSWORD" "$sqlcmd" \
 SQLCMDPASSWORD="$NOTES_APP_PASSWORD" "$sqlcmd" \
     -C -S db,1433 -d SecureNotes -U notes_app -b \
     -Q "EXEC app.ListNoteShares @UserId = '00000000-0000-0000-0000-000000000000', @NoteId = '00000000-0000-0000-0000-000000000000';" >/dev/null
-
 printf '%s\n' 'Database schema is ready; notes_app is denied direct table reads and can execute the required procedures.'

@@ -35,6 +35,7 @@ services:
       - ./database/005_p5.sql:/bootstrap/005_p5.sql:ro
       - ./database/006_p6.sql:/bootstrap/006_p6.sql:ro
       - ./database/007_p7.sql:/bootstrap/007_p7.sql:ro
+      - ./database/008_p8.sql:/bootstrap/008_p8.sql:ro
     depends_on:
       db:
         condition: service_healthy
@@ -54,6 +55,7 @@ services:
       Attachments__MaxTotalBytesPerUser: ${SECURENOTES_ATTACHMENTS_MAX_TOTAL_BYTES_PER_USER:-104857600}
       Attachments__StoragePath: /var/lib/securenotes/attachments
       Sharing__Enabled: ${SECURENOTES_SHARING_ENABLED:-true}
+      Serilog__FilePath: /var/lib/securenotes/logs/securenotes-.log
       SecureNotes__KeyEncryptionKey: ${SECURENOTES_KEK:?Run ./scripts/init-dev-env.sh first}
       Authentication__Google__ClientId: ${GOOGLE_OIDC_CLIENT_ID:-}
       Authentication__Google__ClientSecret: ${GOOGLE_OIDC_CLIENT_SECRET:-}
@@ -66,6 +68,7 @@ services:
         condition: service_completed_successfully
     volumes:
       - attachments-data:/var/lib/securenotes/attachments
+      - api-logs:/var/lib/securenotes/logs
     expose:
       - "8080"
     restart: unless-stopped
@@ -86,3 +89,4 @@ services:
 volumes:
   sqlserver-data:
   attachments-data:
+  api-logs:

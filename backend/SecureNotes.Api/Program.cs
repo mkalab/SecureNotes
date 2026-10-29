@@ -13,6 +13,7 @@ using SecureNotes.Api.Attachments;
 using SecureNotes.Api.Data;
 using SecureNotes.Api.Security;
 using SecureNotes.Api.Sharing;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 var isDevelopment = builder.Environment.IsDevelopment();
@@ -23,6 +24,20 @@ var maxAttachmentRequestBodySize = checked(maxAttachmentFileBytes + 1_048_576);
 const int sessionIdleTimeoutMinutes = 20;
 const int absoluteSessionTimeoutHours = 8;
 var allowedOrigins = builder.Configuration.GetSection("Security:AllowedOrigins").Get<string[]>() ?? [];
+var logPath = builder.Configuration["Serilog:FilePath"] ?? "logs/securenotes-.log";
+Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(logPath))!);
+builder.Host.UseSerilog((context, logger) => logger
+    .ReadFrom.Configuration(context.Configuration)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.File(
+        logPath,
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 14,
+        rollOnFileSizeLimit: true,
+        fileSizeLimitBytes: 10 * 1024 * 1024,
+        shared: true,
+        flushToDiskInterval: TimeSpan.FromSeconds(1)));
 
 builder.Services.AddScoped<SecureNotes.Api.Data.IUserRepository, SecureNotes.Api.Data.SqlUserRepository>();
 builder.Services.AddScoped<SecureNotes.Api.Data.INotesRepository, SecureNotes.Api.Data.SqlNotesRepository>();
@@ -30,6 +45,9 @@ builder.Services.AddScoped<IAttachmentRepository, SqlAttachmentRepository>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
 builder.Services.AddScoped<INoteShareRepository, SqlNoteShareRepository>();
 builder.Services.AddScoped<IShareLinkService, ShareLinkService>();
+builder.Services.AddScoped<ITwoFactorRepository, SqlTwoFactorRepository>();
+builder.Services.AddScoped<ITwoFactorService, TwoFactorService>();
+builder.Services.AddScoped<IAdminRepository, SqlAdminRepository>();
 builder.Services.AddScoped<IAuditRepository, SqlAuditRepository>();
 builder.Services.AddScoped<ISessionRepository, SqlSessionRepository>();
 builder.Services.AddScoped<P4EncryptionMigrationService>();
@@ -112,16 +130,48 @@ authentication.AddCookie(options =>
         }
 
         var sessions = context.HttpContext.RequestServices.GetRequiredService<ISessionRepository>();
-        var isValid = await sessions.ValidateAndTouchAsync(
+        var authorization = await sessions.ValidateAndGetAuthorizationAsync(
             System.Security.Cryptography.SHA256.HashData(tokenBytes),
             DateTime.UtcNow,
             sessionIdleTimeoutMinutes,
             context.HttpContext.RequestAborted);
-        if (!isValid)
+        if (authorization is null
+            || !Guid.TryParse(context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier), out var sessionUserId)
+            || authorization.UserId != sessionUserId)
         {
             context.RejectPrincipal();
             await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return;
         }
+
+        var identity = context.Principal?.Identity as ClaimsIdentity;
+        if (identity is null)
+        {
+            context.RejectPrincipal();
+            await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return;
+        }
+
+        foreach (var claim in identity.FindAll(ClaimTypes.Role).ToArray())
+        {
+            identity.RemoveClaim(claim);
+        }
+        foreach (var claim in identity.FindAll(ClaimTypes.Email).ToArray())
+        {
+            identity.RemoveClaim(claim);
+        }
+        foreach (var claim in identity.FindAll("two_factor_verified").ToArray())
+        {
+            identity.RemoveClaim(claim);
+        }
+
+        identity.AddClaim(new Claim(ClaimTypes.Role, authorization.Role));
+        identity.AddClaim(new Claim(ClaimTypes.Email, authorization.Email));
+        if (authorization.TwoFactorEnabled && authorization.TwoFactorVerified)
+        {
+            identity.AddClaim(new Claim("two_factor_verified", "true"));
+        }
+        context.ShouldRenew = true;
     };
 });
 
@@ -221,6 +271,16 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
+    options.AddPolicy("auth-2fa", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(10),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
 });
 builder.Services.AddAntiforgery(options =>
 {
@@ -234,6 +294,13 @@ builder.Services.AddAntiforgery(options =>
     options.Cookie.Path = "/";
 });
 builder.Services.AddControllers();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("admin-2fa", policy =>
+        policy.RequireAuthenticatedUser()
+            .RequireRole("admin")
+            .RequireClaim("two_factor_verified", "true"));
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 

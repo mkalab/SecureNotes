@@ -3,7 +3,7 @@ info:
   title: SecureNotes API
   version: 0.2.0
   description: |
-    Current implemented API contract for the P0-P6 application, written from
+    Current implemented API contract for the P0-P8 application, written from
     the project roadmap and verified against the ASP.NET Core controllers.
     No API contract was supplied separately. Future roadmap endpoints are
     intentionally omitted until they are implemented. All state-changing
@@ -18,6 +18,8 @@ tags:
   - name: Notes
   - name: Attachments
   - name: Categories
+  - name: Two-factor authentication
+  - name: Administration
 paths:
   /api/health:
     get:
@@ -126,6 +128,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AccountResponse"
+        "202":
+          description: Password accepted; complete TOTP or use one recovery code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TwoFactorRequired"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -879,6 +887,245 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+  /api/auth/2fa:
+    get:
+      tags: [Two-factor authentication]
+      operationId: getTwoFactorStatus
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Whether TOTP is enabled for the current account
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [enabled]
+                properties:
+                  enabled:
+                    type: boolean
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/auth/2fa/enroll:
+    post:
+      tags: [Two-factor authentication]
+      operationId: enrollTwoFactor
+      security:
+        - sessionCookie: []
+          csrfToken: []
+      responses:
+        "200":
+          description: One-time TOTP secret and authenticator URI
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TwoFactorEnrollment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/auth/2fa/enable:
+    post:
+      tags: [Two-factor authentication]
+      operationId: enableTwoFactor
+      security:
+        - sessionCookie: []
+          csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TwoFactorCodeRequest"
+      responses:
+        "200":
+          description: Two-factor enabled; recovery codes are returned once
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryCodesResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /api/auth/2fa/disable:
+    post:
+      tags: [Two-factor authentication]
+      operationId: disableTwoFactor
+      security:
+        - sessionCookie: []
+          csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TwoFactorCodeRequest"
+      responses:
+        "204":
+          description: Two-factor disabled after valid TOTP proof
+        "409":
+          description: Invalid/replayed code or an administrator attempting to disable required 2FA
+  /api/auth/2fa/verify:
+    post:
+      tags: [Two-factor authentication]
+      operationId: verifyTwoFactorLogin
+      security:
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TwoFactorCodeRequest"
+      responses:
+        "200":
+          description: Second factor accepted and an application session issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          description: The second-factor rate limit was exceeded
+  /api/console-4d91/users:
+    get:
+      tags: [Administration]
+      operationId: adminListUsers
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: User account metadata without credentials or note content
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Admin role and a TOTP-verified session are required
+  /api/console-4d91/users/{userId}/lock:
+    post:
+      tags: [Administration]
+      operationId: adminLockUser
+      security:
+        - sessionCookie: []
+          csrfToken: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "204":
+          description: Account locked and all its sessions revoked
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/console-4d91/users/{userId}/unlock:
+    post:
+      tags: [Administration]
+      operationId: adminUnlockUser
+      security:
+        - sessionCookie: []
+          csrfToken: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "204":
+          description: Account unlocked and failed-login counters reset
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/console-4d91/users/{userId}/sessions/revoke:
+    post:
+      tags: [Administration]
+      operationId: adminRevokeUserSessions
+      security:
+        - sessionCookie: []
+          csrfToken: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: Number of active sessions revoked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  revokedSessions:
+                    type: integer
+  /api/console-4d91/audit:
+    get:
+      tags: [Administration]
+      operationId: adminListAudit
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: beforeId
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: Most recent append-only audit events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminAuditEntry"
+  /api/console-4d91/shares:
+    get:
+      tags: [Administration]
+      operationId: adminListShares
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: Share metadata without bearer tokens or note content
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminShare"
+  /api/console-4d91/shares/{shareId}/revoke:
+    post:
+      tags: [Administration]
+      operationId: adminRevokeShare
+      security:
+        - sessionCookie: []
+          csrfToken: []
+      parameters:
+        - $ref: "#/components/parameters/ShareId"
+      responses:
+        "204":
+          description: Share link revoked
+        "404":
+          $ref: "#/components/responses/NotFound"
 components:
   securitySchemes:
     sessionCookie:
@@ -938,6 +1185,14 @@ components:
       schema:
         type: string
         format: uuid
+    UserId:
+      name: userId
+      in: path
+      required: true
+      description: User account identifier
+      schema:
+        type: string
+        format: uuid
     ShareToken:
       name: token
       in: path
@@ -963,7 +1218,7 @@ components:
           type: string
     AccountResponse:
       type: object
-      required: [userId, email]
+      required: [userId, email, role]
       properties:
         userId:
           type: string
@@ -971,6 +1226,134 @@ components:
         email:
           type: string
           format: email
+        role:
+          type: string
+          enum: [user, admin]
+    TwoFactorRequired:
+      type: object
+      required: [requiresTwoFactor]
+      properties:
+        requiresTwoFactor:
+          type: boolean
+          enum: [true]
+    TwoFactorCodeRequest:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          minLength: 6
+          maxLength: 32
+          description: A current TOTP code or unused recovery code.
+    TwoFactorEnrollment:
+      type: object
+      required: [secret, authenticatorUri]
+      properties:
+        secret:
+          type: string
+          description: Base32 TOTP secret; display only during enrollment.
+        authenticatorUri:
+          type: string
+          format: uri
+          description: otpauth URI to import into an authenticator application.
+    RecoveryCodesResponse:
+      type: object
+      required: [recoveryCodes]
+      properties:
+        recoveryCodes:
+          type: array
+          minItems: 10
+          maxItems: 10
+          items:
+            type: string
+    AdminUser:
+      type: object
+      required: [userId, email, role, isDisabled, failedCount, twoFactorEnabled, createdAt]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [user, admin]
+        isDisabled:
+          type: boolean
+        failedCount:
+          type: integer
+        lockedUntil:
+          type: string
+          format: date-time
+          nullable: true
+        twoFactorEnabled:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    AdminAuditEntry:
+      type: object
+      required: [auditLogId, action, createdAt]
+      properties:
+        auditLogId:
+          type: integer
+          format: int64
+        userId:
+          type: string
+          format: uuid
+          nullable: true
+        email:
+          type: string
+          format: email
+          nullable: true
+        action:
+          type: string
+        resourceType:
+          type: string
+          nullable: true
+        resourceId:
+          type: string
+          format: uuid
+          nullable: true
+        ipAddress:
+          type: string
+          nullable: true
+        userAgent:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    AdminShare:
+      type: object
+      required: [shareId, noteId, userId, email, permission, expiresAt, createdAt]
+      properties:
+        shareId:
+          type: string
+          format: uuid
+        noteId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        permission:
+          type: string
+          enum: [view, edit]
+        expiresAt:
+          type: string
+          format: date-time
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
     RegisterRequest:
       type: object
       required: [email, password]

@@ -13,6 +13,7 @@ namespace SecureNotes.Api.Security;
 public sealed class GoogleOidcEvents(
     CryptoService cryptoService,
     AppSessionService appSessions,
+    ITwoFactorService twoFactor,
     IConfiguration configuration,
     ILogger<GoogleOidcEvents> logger)
 {
@@ -146,11 +147,39 @@ public sealed class GoogleOidcEvents(
 
         var email = principal.FindFirstValue(ClaimTypes.Email)!;
         var role = principal.FindFirstValue(ClaimTypes.Role)!;
+        var twoFactorEnabled = await twoFactor.IsEnabledAsync(userId, context.HttpContext.RequestAborted);
+        if (role == "admin" && !twoFactorEnabled)
+        {
+            context.Response.Redirect(GetFrontendRedirectUri(
+                context.HttpContext.Request,
+                QueryHelpers.AddQueryString("/", "authError", "admin_two_factor_required")));
+            context.HandleResponse();
+            return;
+        }
+
+        if (twoFactorEnabled)
+        {
+            if (!await twoFactor.CreateChallengeAsync(
+                userId,
+                "google",
+                context.HttpContext,
+                context.HttpContext.RequestAborted))
+            {
+                throw new AuthenticationFailureException("The two-factor login challenge could not be created.");
+            }
+
+            var twoFactorRedirect = QueryHelpers.AddQueryString("/", "authStatus", "two_factor_required");
+            context.Response.Redirect(GetFrontendRedirectUri(context.HttpContext.Request, twoFactorRedirect));
+            context.HandleResponse();
+            return;
+        }
+
         await appSessions.SignInAsync(
             context.HttpContext,
             userId,
             email,
             role,
+            false,
             context.HttpContext.RequestAborted);
 
         var userAgent = context.HttpContext.Request.Headers.UserAgent.ToString();
@@ -182,9 +211,22 @@ public sealed class GoogleOidcEvents(
         context.HandleResponse();
     }
 
-    public Task OnRemoteFailureAsync(RemoteFailureContext context)
+    public async Task OnRemoteFailureAsync(RemoteFailureContext context)
     {
         logger.LogWarning("Google OIDC sign-in could not be completed.");
+        var userAgent = context.Request.Headers.UserAgent.ToString();
+        if (userAgent.Length > 512)
+        {
+            userAgent = userAgent[..512];
+        }
+
+        var audit = context.HttpContext.RequestServices.GetRequiredService<IAuditRepository>();
+        await audit.RecordAsync(
+            null,
+            "google_login_failed",
+            context.HttpContext.Connection.RemoteIpAddress?.ToString(),
+            string.IsNullOrEmpty(userAgent) ? null : userAgent,
+            context.HttpContext.RequestAborted);
         var returnUrl = context.Properties?.Items.TryGetValue("returnUrl", out var value) == true
             && IsLocalReturnUrl(value)
                 ? value!
@@ -192,7 +234,6 @@ public sealed class GoogleOidcEvents(
         var redirectUri = GetFrontendRedirectUri(context.HttpContext.Request, returnUrl);
         context.Response.Redirect(QueryHelpers.AddQueryString(redirectUri, "authError", "google_failed"));
         context.HandleResponse();
-        return Task.CompletedTask;
     }
 
     private string GetFrontendRedirectUri(HttpRequest request, string returnUrl)

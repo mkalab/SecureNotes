@@ -6,9 +6,11 @@ const googleAuthErrors = {
   google_unavailable: 'Đăng nhập Google chưa được cấu hình trên máy chủ này.',
   google_failed: 'Không thể hoàn tất đăng nhập Google. Hãy thử lại hoặc đăng nhập bằng email và mật khẩu.',
   google_link_failed: 'Không thể liên kết tài khoản Google. Hãy kiểm tra mật khẩu và thử lại.',
+  admin_two_factor_required: 'Tài khoản quản trị phải bật xác minh hai bước trước khi đăng nhập.',
 }
 const googleAuthStatuses = {
   google_linked: 'Đã liên kết tài khoản Google. Lần sau bạn có thể đăng nhập bằng Google.',
+  two_factor_required: 'Nhập mã từ ứng dụng xác thực hoặc một mã dự phòng.',
 }
 
 async function request(path, options = {}) {
@@ -104,6 +106,11 @@ function AttachmentPanel({ noteId, onError }) {
           onClick={() => fileInput.current?.click()}>
           {busy ? 'Đang tải…' : '+ Thêm tệp'}
         </button>
+        {account.role === 'admin' && (
+          <button className={`nav-item ${adminMode ? 'active' : ''}`} onClick={() => setAdminMode((current) => !current)}>
+            <span aria-hidden="true">⚙</span> Quản trị
+          </button>
+        )}
         <input ref={fileInput} className="attachment-input" type="file"
           accept=".pdf,.txt,.md,.png,.jpg,.jpeg,application/pdf,text/plain,text/markdown,image/png,image/jpeg"
           onChange={uploadFile} disabled={busy} />
@@ -380,6 +387,210 @@ function isSafeHttpUrl(value) {
   }
 }
 
+function TwoFactorSettings({ onError }) {
+  const [enabled, setEnabled] = useState(false)
+  const [enrollment, setEnrollment] = useState(null)
+  const [code, setCode] = useState('')
+  const [recoveryCodes, setRecoveryCodes] = useState([])
+  const [status, setStatus] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const refresh = useCallback(async () => {
+    const result = await request('/api/auth/2fa')
+    setEnabled(result.enabled)
+  }, [])
+
+  useEffect(() => {
+    refresh().catch((loadError) => onError(loadError.message))
+  }, [onError, refresh])
+
+  async function beginEnrollment() {
+    setBusy(true)
+    setStatus('')
+    try {
+      setEnrollment(await request('/api/auth/2fa/enroll', { method: 'POST' }))
+    } catch (enrollError) {
+      onError(enrollError.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function enable(event) {
+    event.preventDefault()
+    setBusy(true)
+    setStatus('')
+    try {
+      const result = await request('/api/auth/2fa/enable', {
+        method: 'POST',
+        body: JSON.stringify({ code }),
+      })
+      setRecoveryCodes(result.recoveryCodes)
+      setEnabled(true)
+      setEnrollment(null)
+      setCode('')
+      setStatus('Lưu các mã dự phòng ở nơi an toàn. Chúng chỉ được hiển thị lần này.')
+    } catch (enableError) {
+      onError(enableError.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function disable(event) {
+    event.preventDefault()
+    setBusy(true)
+    try {
+      await request('/api/auth/2fa/disable', {
+        method: 'POST',
+        body: JSON.stringify({ code }),
+      })
+      setEnabled(false)
+      setRecoveryCodes([])
+      setCode('')
+      setStatus('Đã tắt xác minh hai bước.')
+    } catch (disableError) {
+      onError(disableError.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <details className="security-settings">
+      <summary>Xác minh hai bước</summary>
+      <p>{enabled ? 'Đang bật bằng ứng dụng TOTP.' : 'Chưa bật.'}</p>
+      {status && <p role="status">{status}</p>}
+      {recoveryCodes.length > 0 && (
+        <div className="recovery-codes">
+          <p>Mã dự phòng dùng một lần:</p>
+          <ul>{recoveryCodes.map((item) => <li key={item}><code>{item}</code></li>)}</ul>
+        </div>
+      )}
+      {!enabled && !enrollment && (
+        <button className="secondary-button" disabled={busy} onClick={beginEnrollment}>
+          Thiết lập ứng dụng xác thực
+        </button>
+      )}
+      {enrollment && (
+        <form className="security-form" onSubmit={enable}>
+          <p>Thêm khóa này vào ứng dụng xác thực:</p>
+          <code className="totp-secret">{enrollment.secret}</code>
+          <p className="totp-uri">{enrollment.authenticatorUri}</p>
+          <label htmlFor="totp-enable-code">Mã xác minh 6 chữ số</label>
+          <input id="totp-enable-code" inputMode="numeric" autoComplete="one-time-code"
+            minLength={6} maxLength={6} required value={code}
+            onChange={(event) => setCode(event.target.value)} />
+          <button className="secondary-button" disabled={busy}>Bật xác minh</button>
+        </form>
+      )}
+      {enabled && (
+        <form className="security-form" onSubmit={disable}>
+          <label htmlFor="totp-disable-code">Mã xác minh để tắt</label>
+          <input id="totp-disable-code" autoComplete="one-time-code" minLength={6} maxLength={32}
+            required value={code} onChange={(event) => setCode(event.target.value)} />
+          <button className="secondary-button" disabled={busy}>Tắt xác minh</button>
+        </form>
+      )}
+    </details>
+  )
+}
+
+function AdminPanel({ onError }) {
+  const [users, setUsers] = useState([])
+  const [auditEntries, setAuditEntries] = useState([])
+  const [shares, setShares] = useState([])
+  const [busy, setBusy] = useState(false)
+
+  const load = useCallback(async () => {
+    const [userRows, auditRows, shareRows] = await Promise.all([
+      request('/api/console-4d91/users'),
+      request('/api/console-4d91/audit'),
+      request('/api/console-4d91/shares'),
+    ])
+    setUsers(userRows)
+    setAuditEntries(auditRows)
+    setShares(shareRows)
+  }, [])
+
+  useEffect(() => {
+    load().catch((loadError) => onError(loadError.message))
+  }, [load, onError])
+
+  async function act(path, description) {
+    setBusy(true)
+    try {
+      await request(path, { method: 'POST' })
+      await load()
+    } catch (actionError) {
+      onError(actionError.message)
+    } finally {
+      setBusy(false)
+    }
+    if (description) onError('')
+  }
+
+  return (
+    <section className="admin-panel" aria-label="Quản trị hệ thống">
+      <section>
+        <h2>Tài khoản</h2>
+        <div className="admin-table-wrap">
+          <table className="admin-table">
+            <thead><tr><th>Email</th><th>Vai trò</th><th>Trạng thái</th><th>2FA</th><th>Thao tác</th></tr></thead>
+            <tbody>{users.map((user) => (
+              <tr key={user.userId}>
+                <td>{user.email}</td><td>{user.role}</td>
+                <td>{user.isDisabled ? 'Đã khóa' : 'Hoạt động'}</td>
+                <td>{user.twoFactorEnabled ? 'Bật' : 'Tắt'}</td>
+                <td className="admin-actions">
+                  <button disabled={busy} onClick={() => act(
+                    `/api/console-4d91/users/${user.userId}/${user.isDisabled ? 'unlock' : 'lock'}`,
+                    'user')}>{user.isDisabled ? 'Mở khóa' : 'Khóa'}</button>
+                  <button disabled={busy || user.isDisabled} onClick={() => act(
+                    `/api/console-4d91/users/${user.userId}/sessions/revoke`,
+                    'sessions')}>Buộc đăng xuất</button>
+                </td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      </section>
+      <section>
+        <h2>Link chia sẻ</h2>
+        <div className="admin-table-wrap">
+          <table className="admin-table">
+            <thead><tr><th>Chủ sở hữu</th><th>Ghi chú ID</th><th>Quyền</th><th>Hết hạn</th><th>Trạng thái</th><th></th></tr></thead>
+            <tbody>{shares.map((share) => (
+              <tr key={share.shareId}>
+                <td>{share.email}</td><td><code>{share.noteId}</code></td><td>{share.permission}</td>
+                <td>{new Date(share.expiresAt).toLocaleString('vi-VN')}</td>
+                <td>{share.revokedAt ? 'Đã thu hồi' : 'Đang hoạt động'}</td>
+                <td>{!share.revokedAt && <button disabled={busy}
+                  onClick={() => act(`/api/console-4d91/shares/${share.shareId}/revoke`, 'share')}>Thu hồi</button>}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      </section>
+      <section>
+        <h2>Nhật ký kiểm toán</h2>
+        <div className="admin-table-wrap">
+          <table className="admin-table">
+            <thead><tr><th>Thời gian</th><th>Tài khoản</th><th>Hành động</th><th>IP</th><th>User-Agent</th></tr></thead>
+            <tbody>{auditEntries.map((entry) => (
+              <tr key={entry.auditLogId}>
+                <td>{new Date(entry.createdAt).toLocaleString('vi-VN')}</td>
+                <td>{entry.email ?? entry.userId ?? '—'}</td><td>{entry.action}</td>
+                <td>{entry.ipAddress ?? '—'}</td><td>{entry.userAgent ?? '—'}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  )
+}
+
 function WorkspaceApp() {
   const [account, setAccount] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
@@ -387,7 +598,7 @@ function WorkspaceApp() {
   const [authError, setAuthError] = useState(() => (
     googleAuthErrors[new URLSearchParams(window.location.search).get('authError')] ?? ''
   ))
-  const [authStatus] = useState(() => (
+  const [authStatus, setAuthStatus] = useState(() => (
     googleAuthStatuses[new URLSearchParams(window.location.search).get('authStatus')] ?? ''
   ))
   const [email, setEmail] = useState('')
@@ -405,6 +616,11 @@ function WorkspaceApp() {
   const [itemTitle, setItemTitle] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [twoFactorPending, setTwoFactorPending] = useState(
+    () => new URLSearchParams(window.location.search).get('authStatus') === 'two_factor_required',
+  )
+  const [twoFactorCode, setTwoFactorCode] = useState('')
+  const [adminMode, setAdminMode] = useState(false)
 
   useEffect(() => {
     const url = new URL(window.location.href)
@@ -463,8 +679,15 @@ function WorkspaceApp() {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       })
+      if (me.requiresTwoFactor) {
+        setTwoFactorPending(true)
+        setPassword('')
+        setAuthStatus('two_factor_required')
+        return
+      }
       setAccount(me)
       setPassword('')
+      setAuthStatus('')
     } catch (submitError) {
       setAuthError(submitError.message)
     } finally {
@@ -477,10 +700,31 @@ function WorkspaceApp() {
     try {
       await request('/api/auth/logout', { method: 'POST' })
       setAccount(null)
+      setAdminMode(false)
       setNotes([])
       setCategories([])
     } catch (logoutError) {
       setError(logoutError.message)
+    }
+  }
+
+  async function submitTwoFactor(event) {
+    event.preventDefault()
+    setBusy(true)
+    setAuthError('')
+    try {
+      const me = await request('/api/auth/2fa/verify', {
+        method: 'POST',
+        body: JSON.stringify({ code: twoFactorCode }),
+      })
+      setAccount(me)
+      setTwoFactorPending(false)
+      setTwoFactorCode('')
+      setAuthStatus('')
+    } catch (verifyError) {
+      setAuthError(verifyError.message)
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -661,38 +905,61 @@ function WorkspaceApp() {
         <section className="auth-card">
           <div className="brand-mark" aria-hidden="true">S</div>
           <p className="eyebrow">Không gian riêng tư</p>
-          <h1>{authMode === 'login' ? 'Chào mừng trở lại' : 'Tạo tài khoản'}</h1>
-          <p className="auth-copy">Ghi lại ý tưởng, sắp xếp chúng theo cách của bạn.</p>
-          <form onSubmit={submitAuth} className="auth-form">
-            <label htmlFor="email">Email</label>
-            <input id="email" type="email" autoComplete="email" required maxLength={320}
-              value={email} onChange={(event) => setEmail(event.target.value)} />
-            <label htmlFor="password">Mật khẩu</label>
-            <input id="password" type="password" autoComplete="off"
-              required minLength={authMode === 'register' ? 12 : 1} maxLength={128}
-              pattern={authMode === 'register' ? '(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{12,128}' : undefined}
-              title={authMode === 'register' ? 'Cần ít nhất 12 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.' : undefined}
-              value={password} onChange={(event) => setPassword(event.target.value)} />
-            {authError && <p className="form-error" role="alert">{authError}</p>}
-            <button className="primary-button auth-submit" disabled={busy}>
-              {busy ? 'Đang xử lý…' : authMode === 'login' ? 'Đăng nhập' : 'Đăng ký'}
-            </button>
-          </form>
-          {authMode === 'login' && (
+          <h1>{twoFactorPending ? 'Xác minh hai bước' : authMode === 'login' ? 'Chào mừng trở lại' : 'Tạo tài khoản'}</h1>
+          <p className="auth-copy">{twoFactorPending
+            ? 'Nhập mã 6 chữ số trong ứng dụng xác thực hoặc một mã dự phòng.'
+            : 'Ghi lại ý tưởng, sắp xếp chúng theo cách của bạn.'}</p>
+          {twoFactorPending ? (
+            <form onSubmit={submitTwoFactor} className="auth-form">
+              <label htmlFor="two-factor-code">Mã xác minh hoặc mã dự phòng</label>
+              <input id="two-factor-code" autoComplete="one-time-code" autoFocus required maxLength={32}
+                value={twoFactorCode} onChange={(event) => setTwoFactorCode(event.target.value)} />
+              {authError && <p className="form-error" role="alert">{authError}</p>}
+              <button className="primary-button auth-submit" disabled={busy}>
+                {busy ? 'Đang xác minh…' : 'Xác minh'}
+              </button>
+              <button type="button" className="text-button" onClick={() => {
+                setTwoFactorPending(false)
+                setTwoFactorCode('')
+                setAuthError('')
+                setAuthStatus('')
+              }}>Hủy và đăng nhập lại</button>
+            </form>
+          ) : (
             <>
-              <div className="auth-divider"><span>hoặc</span></div>
-              <a className="google-login-button" href="/api/auth/google?returnUrl=%2F">
-                Tiếp tục với Google
-              </a>
+              <form onSubmit={submitAuth} className="auth-form">
+                <label htmlFor="email">Email</label>
+                <input id="email" type="email" autoComplete="email" required maxLength={320}
+                  value={email} onChange={(event) => setEmail(event.target.value)} />
+                <label htmlFor="password">Mật khẩu</label>
+                <input id="password" type="password" autoComplete="off"
+                  required minLength={authMode === 'register' ? 12 : 1} maxLength={128}
+                  pattern={authMode === 'register' ? '(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{12,128}' : undefined}
+                  title={authMode === 'register' ? 'Cần ít nhất 12 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.' : undefined}
+                  value={password} onChange={(event) => setPassword(event.target.value)} />
+                {authError && <p className="form-error" role="alert">{authError}</p>}
+                <button className="primary-button auth-submit" disabled={busy}>
+                  {busy ? 'Đang xử lý…' : authMode === 'login' ? 'Đăng nhập' : 'Đăng ký'}
+                </button>
+              </form>
+              {authMode === 'login' && (
+                <>
+                  <div className="auth-divider"><span>hoặc</span></div>
+                  <a className="google-login-button" href="/api/auth/google?returnUrl=%2F">
+                    Tiếp tục với Google
+                  </a>
+                </>
+              )}
+              <p className="auth-switch">
+                {authMode === 'login' ? 'Chưa có tài khoản?' : 'Đã có tài khoản?'}{' '}
+                <button className="text-button" onClick={() => {
+                  setAuthMode(authMode === 'login' ? 'register' : 'login')
+                  setAuthError('')
+                }}>{authMode === 'login' ? 'Đăng ký' : 'Đăng nhập'}</button>
+              </p>
             </>
           )}
-          <p className="auth-switch">
-            {authMode === 'login' ? 'Chưa có tài khoản?' : 'Đã có tài khoản?'}{' '}
-            <button className="text-button" onClick={() => {
-              setAuthMode(authMode === 'login' ? 'register' : 'login')
-              setAuthError('')
-            }}>{authMode === 'login' ? 'Đăng ký' : 'Đăng nhập'}</button>
-          </p>
+          {authStatus && <p className="notice-success" role="status">{googleAuthStatuses[authStatus] ?? ''}</p>}
         </section>
       </main>
     )
@@ -736,6 +1003,7 @@ function WorkspaceApp() {
           </form>
         </div>
         <div className="sidebar-bottom">
+          <TwoFactorSettings onError={setError} />
           <details className="google-link-settings" onToggle={(event) => {
             if (!event.currentTarget.open || linkCsrfToken) return
             request('/api/csrf')
@@ -761,15 +1029,15 @@ function WorkspaceApp() {
       <main className="workspace">
         <header className="topbar">
           <div>
-            <p className="eyebrow">Ghi chú của bạn</p>
-            <h1>{categoryId ? categories.find((category) => category.categoryId === categoryId)?.name : 'Notes Manager'}</h1>
+            <p className="eyebrow">{adminMode ? 'Quản trị hệ thống' : 'Ghi chú của bạn'}</p>
+            <h1>{adminMode ? 'Bảng quản trị' : categoryId ? categories.find((category) => category.categoryId === categoryId)?.name : 'Notes Manager'}</h1>
           </div>
-          <button className="primary-button create-button" onClick={() => setEditor(blankNote(categoryId))}>
+          {!adminMode && <button className="primary-button create-button" onClick={() => setEditor(blankNote(categoryId))}>
             <span aria-hidden="true">+</span> Ghi chú mới
-          </button>
+          </button>}
         </header>
 
-        <section className="toolbar" aria-label="Tìm và lọc ghi chú">
+        {!adminMode && <section className="toolbar" aria-label="Tìm và lọc ghi chú">
           <label className="search-box">
             <span aria-hidden="true">⌕</span>
             <input type="search" placeholder="Tìm kiếm ghi chú…" value={search}
@@ -777,13 +1045,15 @@ function WorkspaceApp() {
             <kbd>⌘ K</kbd>
           </label>
           <span className="result-count">{visibleNotes.length} ghi chú</span>
-        </section>
+        </section>}
 
         {error && <div className="notice-error" role="alert">{error}<button onClick={() => setError('')} aria-label="Đóng">×</button></div>}
-        {authError && <div className="notice-error" role="alert">{authError}</div>}
-        {authStatus && <div className="notice-success" role="status">{authStatus}</div>}
+        {!adminMode && authError && <div className="notice-error" role="alert">{authError}</div>}
+        {!adminMode && authStatus && <div className="notice-success" role="status">{googleAuthStatuses[authStatus] ?? ''}</div>}
 
-        {visibleNotes.length === 0 ? (
+        {adminMode ? (
+          <AdminPanel onError={setError} />
+        ) : visibleNotes.length === 0 ? (
           <section className="empty-state">
             <div className="empty-icon" aria-hidden="true">✦</div>
             <h2>{search ? 'Không tìm thấy ghi chú' : 'Bắt đầu với ghi chú đầu tiên'}</h2>

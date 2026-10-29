@@ -48,7 +48,7 @@ schema_sql_file="$(sqlcmd_file_path "$schema_file")"
 SQLCMDPASSWORD="$sql_admin_password" sqlcmd \
     -C -S "$sql_server" -d master -U "$sql_admin_user" -b -i "$schema_sql_file"
 
-for migration in database/002_p2.sql database/003_p3.sql database/004_p4.sql database/005_p5.sql database/006_p6.sql database/007_p7.sql; do
+for migration in database/002_p2.sql database/003_p3.sql database/004_p4.sql database/005_p5.sql database/006_p6.sql database/007_p7.sql database/008_p8.sql; do
     migration_sql_file="$(sqlcmd_file_path "$migration")"
     SQLCMDPASSWORD="$NOTES_MIGRATOR_PASSWORD" sqlcmd \
         -C -S "$sql_server" -d SecureNotes -U notes_migrator -b -i "$migration_sql_file"

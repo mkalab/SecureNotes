@@ -1,8 +1,8 @@
 # Trạng thái hiện tại — SecureNotes
 
 **Cập nhật:** 2026-10-29
-**Giai đoạn hiện tại:** P7 — Chia sẻ ghi chú qua link
-**Trạng thái:** P0–P7 đã triển khai và kiểm tra tích hợp. P5 chưa được xác minh đăng nhập end-to-end với Google vì Google Cloud OAuth client/test users chưa được cấu hình. Việc sao lưu KEK và công cụ xoay khóa tự động vẫn là việc vận hành trước production.
+**Giai đoạn hiện tại:** P8 — Quản trị và kiểm soát truy cập
+**Trạng thái:** P0–P8 đã triển khai và kiểm tra tích hợp. P5 chưa được xác minh đăng nhập end-to-end với Google vì Google Cloud OAuth client/test users chưa được cấu hình. Việc sao lưu KEK và công cụ xoay khóa tự động vẫn là việc vận hành trước production.
 
 ## P0 — Chuẩn bị: hoàn thành
 
@@ -11,7 +11,7 @@
 - Khai báo Node.js `>=22.12.0 <23`; môi trường đã dùng Node.js 22.
 - Thêm API health, ứng dụng React/Vite, OpenAPI, Dockerfile và Docker Compose.
 - SQL Server healthy, frontend chạy tại `http://localhost:5173`, health endpoint qua proxy hoạt động.
-- Hợp đồng API ban đầu do trợ lý tự phác thảo từ roadmap, không phải hợp đồng được người dùng cung cấp. Hiện `docs/openapi.yaml` được đồng bộ với các endpoint đã triển khai đến P7.
+- Hợp đồng API ban đầu do trợ lý tự phác thảo từ roadmap, không phải hợp đồng được người dùng cung cấp. Hiện `docs/openapi.yaml` được đồng bộ với các endpoint đã triển khai đến P8.
 
 ## P1 — CSDL nền tảng và phân quyền: hoàn thành
 
@@ -86,7 +86,17 @@
 - `./scripts/test-p7-smoke.sh` — đạt: token hash, CSRF, quyền từ DB, query parameters trùng/thao túng, file thuộc đúng note, login cho edit, không đổi metadata, thu hồi/hết hạn cùng 404, audit và rate limit.
 - `notes_app` không đọc trực tiếp `dbo.share_links`; chỉ gọi stored procedures đã cấp quyền. Migration `database/007_p7.sql` được tích hợp vào luồng Compose và SQL Server local.
 
-## Xác minh P0–P7
+## P8 — Quản trị và kiểm soát truy cập: hoàn thành
+
+- Tài khoản mới luôn có vai trò `user`; `scripts/grant-admin.sh` chỉ cấp admin cho email được chỉ định nếu tài khoản đã bật TOTP, sau đó thu hồi các phiên cũ. Tài khoản admin bắt buộc giữ 2FA.
+- Thêm TOTP, mã dự phòng dùng một lần, challenge đăng nhập giới hạn thời gian và chống dùng lại mã TOTP. Secret được mã hóa bằng DEK; chỉ hash mã dự phòng được lưu trong DB.
+- Vai trò và trạng thái tài khoản được kiểm tra lại từ DB trên mỗi request đã xác thực. API quản trị yêu cầu role admin cùng phiên đã xác minh 2FA.
+- Admin có thể xem metadata tài khoản, khóa/mở khóa, thu hồi phiên, xem audit và thu hồi link chia sẻ; không có API quản trị để đọc nội dung ghi chú hay tệp.
+- Migration `database/008_p8.sql` thêm thủ tục quản trị và quyền từ chối UPDATE/DELETE audit log cho `notes_app`; Compose và `scripts/init-local-db.sh` đều áp dụng migration này.
+- Audit ghi các sự kiện xác thực, 2FA, quản trị và hoạt động liên quan; Serilog ghi console cùng file xoay theo ngày, tối đa 10 MiB/file và giữ 14 file. Compose lưu log trong volume `api-logs`.
+- README và `docs/openapi.yaml` được cập nhật cho P8; `scripts/test-p8-smoke.sh` kiểm tra luồng MFA, recovery code, RBAC, quản trị phiên/tài khoản/share, audit và quyền DB.
+
+## Xác minh P0–P8
 
 - `dotnet build backend/SecureNotes.Api/SecureNotes.Api.csproj --no-restore` — thành công, 0 lỗi; vẫn có 2 advisory dependency bắc cầu được ghi dưới đây.
 - `cd frontend && npm run build` — thành công.
@@ -114,6 +124,11 @@
 - `docs/openapi.yaml` parse được thành YAML; `docker compose config --quiet`, `bash -n scripts/bootstrap-db.sh scripts/init-local-db.sh` và `git diff --check` hợp lệ.
 - Release build API và production build frontend thành công; `./scripts/test-p2-smoke.sh`, hai smoke test P6, health/ready API và kiểm tra Swagger runtime đều đạt.
 - `./scripts/test-p7-smoke.sh` đạt toàn bộ luồng P7, gồm kill switch tắt/mở; migration chạy lặp lại thành công, Swagger runtime có 28 path gồm đủ endpoint P7, health endpoint trả `ready`.
+- `./scripts/test-p8-smoke.sh` — đạt: bật TOTP, recovery code dùng một lần, đăng nhập admin, làm mới role từ DB, khóa tài khoản, thu hồi phiên/share, audit không chứa nội dung note và quyền append-only của audit log.
+- `docker compose run --rm db-init` — migration P8 chạy lặp lại thành công; `notes_app` bị từ chối đọc trực tiếp các bảng nhạy cảm và sửa audit log.
+- Release build API và production build frontend thành công; frontend lint hoàn tất với 3 cảnh báo `react(set-state-in-effect)` trong `App.jsx`.
+- `docs/openapi.yaml` parse thành YAML hợp lệ, có 40 path và 147 tham chiếu nội bộ hợp lệ; Compose config, shell syntax và `git diff --check` đều đạt.
+- API/frontend chạy sau Docker build; readiness trả `ready`, Serilog tạo file trong volume `api-logs`.
 - Build .NET còn cảnh báo dependency bắc cầu `System.Security.Cryptography.Pkcs` 9.0.18 có GHSA-846f-f764-76mx (High) và GHSA-2fmv-rv2c-59x7 (Moderate); chưa cập nhật dependency trong phạm vi P3.
 
 ## Giới hạn và việc còn lại
@@ -125,4 +140,4 @@
 - Chưa có Git remote; chưa xác minh gitleaks local.
 - Build .NET còn advisory trên dependency bắc cầu `System.Security.Cryptography.Pkcs` 9.0.18: GHSA-846f-f764-76mx (High) và GHSA-2fmv-rv2c-59x7 (Moderate).
 - Google Cloud project/test users/OAuth client chưa được tạo; chưa chạy login thật với Gmail và chưa xác nhận callback production/Google Console. P5 chỉ được xem là hoàn tất sau kiểm thử này.
-- TOTP/2FA và admin chưa triển khai.
+- P8 smoke test chạy trong Compose; kiểm thử cấp admin trên SQL Server local ngoài Compose chưa chạy riêng.

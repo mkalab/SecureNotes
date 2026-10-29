@@ -17,6 +17,7 @@
 
 # User-generated files
 uploads/
+/logs/
 
 # IDE and OS
 .vscode/

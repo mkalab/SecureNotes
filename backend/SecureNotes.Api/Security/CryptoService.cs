@@ -87,6 +87,12 @@ public sealed class CryptoService : IDisposable
         }
     }
 
+    public byte[] EncryptBytes(ReadOnlySpan<byte> plaintext, ReadOnlySpan<byte> userDataKey, string context) =>
+        Encrypt(plaintext, userDataKey, Encoding.UTF8.GetBytes(context));
+
+    public byte[] DecryptBytes(ReadOnlySpan<byte> ciphertext, ReadOnlySpan<byte> userDataKey, string context) =>
+        Decrypt(ciphertext, userDataKey, Encoding.UTF8.GetBytes(context));
+
     private static byte[] Encrypt(ReadOnlySpan<byte> plaintext, ReadOnlySpan<byte> key, ReadOnlySpan<byte> associatedData)
     {
         if (key.Length != KeySize)

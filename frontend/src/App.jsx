@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 
 const colors = ['#fff8c5', '#fde2e2', '#dbeafe', '#dcfce7', '#f3e8ff', '#ffffff']
@@ -13,7 +13,7 @@ const googleAuthStatuses = {
 
 async function request(path, options = {}) {
   const headers = new Headers(options.headers)
-  if (options.body) headers.set('Content-Type', 'application/json')
+  if (options.body && !(options.body instanceof FormData)) headers.set('Content-Type', 'application/json')
 
   if (options.method === 'POST') {
     const csrf = await fetch('/api/csrf', { credentials: 'same-origin' })
@@ -36,6 +36,341 @@ async function request(path, options = {}) {
   return data
 }
 
+function AttachmentPanel({ noteId, onError }) {
+  const [attachments, setAttachments] = useState([])
+  const [busy, setBusy] = useState(false)
+  const [panelError, setPanelError] = useState('')
+  const fileInput = useRef(null)
+
+  useEffect(() => {
+    let active = true
+    request(`/api/notes/${noteId}/attachments`)
+      .then((result) => {
+        if (active) setAttachments(result)
+      })
+      .catch((loadError) => {
+        if (active) setPanelError(loadError.message)
+      })
+    return () => {
+      active = false
+    }
+  }, [noteId])
+
+  const loadAttachments = useCallback(async () => {
+    setAttachments(await request(`/api/notes/${noteId}/attachments`))
+  }, [noteId])
+
+  async function uploadFile(event) {
+    const [file] = event.target.files ?? []
+    event.target.value = ''
+    if (!file) return
+
+    setBusy(true)
+    setPanelError('')
+    try {
+      if (file.size > 10 * 1024 * 1024) {
+        throw new Error('Mỗi tệp được giới hạn tối đa 10 MiB.')
+      }
+
+      const body = new FormData()
+      body.append('file', file)
+      await request(`/api/notes/${noteId}/attachments`, { method: 'POST', body })
+      await loadAttachments()
+    } catch (uploadError) {
+      setPanelError(uploadError.message)
+      onError(uploadError.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function deleteAttachment(attachment) {
+    if (!window.confirm(`Xóa tệp "${attachment.fileName}"?`)) return
+    setPanelError('')
+    try {
+      await request(`/api/notes/${noteId}/attachments/${attachment.attachmentId}/delete`, { method: 'POST' })
+      await loadAttachments()
+    } catch (deleteError) {
+      setPanelError(deleteError.message)
+      onError(deleteError.message)
+    }
+  }
+
+  return (
+    <section className="attachments-panel" aria-label="Tệp đính kèm">
+      <div className="attachments-heading">
+        <strong>Tệp đính kèm</strong>
+        <button className="attachment-add" type="button" disabled={busy}
+          onClick={() => fileInput.current?.click()}>
+          {busy ? 'Đang tải…' : '+ Thêm tệp'}
+        </button>
+        <input ref={fileInput} className="attachment-input" type="file"
+          accept=".pdf,.txt,.md,.png,.jpg,.jpeg,application/pdf,text/plain,text/markdown,image/png,image/jpeg"
+          onChange={uploadFile} disabled={busy} />
+      </div>
+      {panelError && <p className="attachment-error" role="alert">{panelError}</p>}
+      {attachments.length === 0 ? (
+        <p className="attachment-empty">Chưa có tệp. Hỗ trợ PDF, TXT, MD, PNG và JPEG; tối đa 10 MiB/tệp.</p>
+      ) : (
+        <ul className="attachment-list">
+          {attachments.map((attachment) => (
+            <li key={attachment.attachmentId}>
+              <a href={`/api/notes/${noteId}/attachments/${attachment.attachmentId}/download`}>
+                {attachment.fileName}
+              </a>
+              <span>{formatBytes(attachment.sizeBytes)}</span>
+              <button type="button" className="icon-button" onClick={() => deleteAttachment(attachment)}
+                aria-label={`Xóa tệp ${attachment.fileName}`}>×</button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+function SharePanel({ noteId, onError }) {
+  const [shares, setShares] = useState([])
+  const [permission, setPermission] = useState('view')
+  const [expiresInHours, setExpiresInHours] = useState(24)
+  const [createdUrl, setCreatedUrl] = useState('')
+  const [status, setStatus] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const loadShares = useCallback(async () => {
+    setShares(await request(`/api/notes/${noteId}/shares`))
+  }, [noteId])
+
+  useEffect(() => {
+    let active = true
+    request(`/api/notes/${noteId}/shares`)
+      .then((result) => {
+        if (active) setShares(result)
+      })
+      .catch((loadError) => {
+        if (active) onError(loadError.message)
+      })
+    return () => {
+      active = false
+    }
+  }, [noteId, onError])
+
+  async function createShare(event) {
+    event.preventDefault()
+    setBusy(true)
+    setCreatedUrl('')
+    setStatus('')
+    try {
+      const created = await request(`/api/notes/${noteId}/shares`, {
+        method: 'POST',
+        body: JSON.stringify({ permission, expiresInHours }),
+      })
+      setCreatedUrl(`${window.location.origin}/share/${created.token}`)
+      setStatus(`Link ${created.permission} có hiệu lực đến ${new Date(created.expiresAt).toLocaleString('vi-VN')}.`)
+      await loadShares()
+    } catch (createError) {
+      onError(createError.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function revokeShare(share) {
+    setBusy(true)
+    try {
+      await request(`/api/notes/${noteId}/shares/${share.shareId}/revoke`, { method: 'POST' })
+      setStatus('Đã thu hồi link chia sẻ.')
+      await loadShares()
+    } catch (revokeError) {
+      onError(revokeError.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function copyCreatedUrl() {
+    try {
+      await navigator.clipboard.writeText(createdUrl)
+      setStatus('Đã sao chép link. Hãy lưu lại; link chỉ được hiển thị khi tạo.')
+    } catch {
+      onError('Không thể sao chép link trên trình duyệt này. Hãy chọn và sao chép link thủ công.')
+    }
+  }
+
+  return (
+    <section className="share-panel" aria-label="Chia sẻ ghi chú">
+      <h3>Chia sẻ qua link</h3>
+      <form className="share-create-form" onSubmit={createShare}>
+        <label>
+          Quyền
+          <select value={permission} onChange={(event) => setPermission(event.target.value)} disabled={busy}>
+            <option value="view">Chỉ xem</option>
+            <option value="edit">Được sửa nội dung</option>
+          </select>
+        </label>
+        <label>
+          Hết hạn sau
+          <select value={expiresInHours} onChange={(event) => setExpiresInHours(Number(event.target.value))} disabled={busy}>
+            <option value={24}>24 giờ</option>
+            <option value={168}>7 ngày</option>
+            <option value={720}>30 ngày</option>
+          </select>
+        </label>
+        <button className="secondary-button" disabled={busy}>
+          {busy ? 'Đang xử lý…' : 'Tạo link'}
+        </button>
+      </form>
+      {createdUrl && (
+        <div className="share-created" role="status">
+          <p>{status}</p>
+          <input aria-label="Link chia sẻ mới" readOnly value={createdUrl} onFocus={(event) => event.target.select()} />
+          <button type="button" className="secondary-button" onClick={copyCreatedUrl}>Sao chép</button>
+        </div>
+      )}
+      {!createdUrl && status && <p className="share-status" role="status">{status}</p>}
+      {shares.length > 0 && (
+        <ul className="share-list">
+          {shares.map((share) => {
+            const inactive = share.revokedAt || share.isExpired
+            return (
+              <li key={share.shareId}>
+                <span>{share.permission === 'view' ? 'Chỉ xem' : 'Được sửa nội dung'} · hết hạn {new Date(share.expiresAt).toLocaleString('vi-VN')}</span>
+                {inactive
+                  ? <span className="share-inactive">{share.revokedAt ? 'Đã thu hồi' : 'Đã hết hạn'}</span>
+                  : <button type="button" className="delete-action" disabled={busy} onClick={() => revokeShare(share)}>Thu hồi</button>}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      <p className="share-help">Link chỉ xuất hiện một lần khi tạo. Link sửa yêu cầu người nhận đăng nhập; mọi link có thể thu hồi tại đây.</p>
+    </section>
+  )
+}
+
+function SharedNotePage() {
+  const token = window.location.pathname.slice('/share/'.length)
+  const [note, setNote] = useState(null)
+  const [attachments, setAttachments] = useState([])
+  const [authenticated, setAuthenticated] = useState(false)
+  const [title, setTitle] = useState('')
+  const [content, setContent] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    Promise.all([
+      request(`/api/shared/${encodeURIComponent(token)}`),
+      request('/api/auth/me').catch(() => null),
+    ]).then(([sharedNote, account]) => {
+      if (!active) return
+      setNote(sharedNote)
+      setTitle(sharedNote.title)
+      setContent(sharedNote.content)
+      setAuthenticated(Boolean(account))
+    }).catch(() => {
+      if (active) setError('Link không hợp lệ, đã hết hạn hoặc đã bị thu hồi.')
+    })
+    return () => {
+      active = false
+    }
+  }, [token])
+
+  useEffect(() => {
+    let active = true
+    request(`/api/shared/${encodeURIComponent(token)}/attachments`)
+      .then((result) => {
+        if (active) setAttachments(result)
+      })
+      .catch(() => {
+        if (active) setAttachments([])
+      })
+    return () => {
+      active = false
+    }
+  }, [token])
+
+  async function saveSharedNote(event) {
+    event.preventDefault()
+    setBusy(true)
+    setError('')
+    try {
+      const updated = await request(`/api/shared/${encodeURIComponent(token)}/update`, {
+        method: 'POST',
+        body: JSON.stringify({ title, content }),
+      })
+      setNote(updated)
+    } catch (saveError) {
+      setError(saveError.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (error && !note) {
+    return (
+      <main className="shared-page">
+        <section className="shared-card">
+          <div className="brand-mark" aria-hidden="true">S</div>
+          <h1>Không thể mở ghi chú</h1>
+          <p role="alert">{error}</p>
+          <a href="/">Về SecureNotes</a>
+        </section>
+      </main>
+    )
+  }
+
+  if (!note) return <div className="loading-screen">Đang mở ghi chú được chia sẻ…</div>
+
+  const canEdit = note.permission === 'edit' && authenticated
+  return (
+    <main className="shared-page">
+      <article className="shared-card">
+        <a className="shared-brand" href="/">SecureNotes</a>
+        <p className="eyebrow">{note.permission === 'edit' ? 'Ghi chú được chia sẻ · quyền sửa' : 'Ghi chú được chia sẻ · chỉ xem'}</p>
+        {canEdit ? (
+          <form className="shared-edit-form" onSubmit={saveSharedNote}>
+            <label htmlFor="shared-title">Tiêu đề</label>
+            <input id="shared-title" required maxLength={200} value={title} onChange={(event) => setTitle(event.target.value)} />
+            <label htmlFor="shared-content">Nội dung</label>
+            <textarea id="shared-content" maxLength={20000} rows={12} value={content}
+              onChange={(event) => setContent(event.target.value)} />
+            <button className="primary-button" disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu nội dung'}</button>
+          </form>
+        ) : (
+          <>
+            <h1>{note.title}</h1>
+            <p className="shared-content">{note.content || 'Ghi chú này chưa có nội dung.'}</p>
+            {note.permission === 'edit' && (
+              <p className="share-login-notice">Đăng nhập để sửa nội dung của ghi chú này. <a href="/">Đăng nhập</a>, sau đó quay lại link chia sẻ.</p>
+            )}
+          </>
+        )}
+        {error && <p className="notice-error" role="alert">{error}</p>}
+        <section className="shared-attachments" aria-label="Tệp đính kèm">
+          <h2>Tệp đính kèm</h2>
+          {attachments.length === 0
+            ? <p>Không có tệp đính kèm.</p>
+            : <ul className="attachment-list">{attachments.map((attachment) => (
+              <li key={attachment.attachmentId}>
+                <a href={`/api/shared/${encodeURIComponent(token)}/attachments/${attachment.attachmentId}/download`}>{attachment.fileName}</a>
+                <span>{formatBytes(attachment.sizeBytes)}</span>
+              </li>
+            ))}</ul>}
+        </section>
+        <p className="share-expiry">Link hết hạn {new Date(note.expiresAt).toLocaleString('vi-VN')}.</p>
+      </article>
+    </main>
+  )
+}
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`
+}
+
 function isSafeHttpUrl(value) {
   if (!value) return false
   try {
@@ -45,7 +380,7 @@ function isSafeHttpUrl(value) {
   }
 }
 
-function App() {
+function WorkspaceApp() {
   const [account, setAccount] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [authMode, setAuthMode] = useState('login')
@@ -495,6 +830,8 @@ function App() {
                 </button>
                 {expandedNote === note.noteId && (
                   <div className="items-panel">
+                    <AttachmentPanel noteId={note.noteId} onError={setError} />
+                    <SharePanel noteId={note.noteId} onError={setError} />
                     {notes.filter((child) => child.parentId === note.noteId).map((child) => (
                       <div className="subnote-row" key={child.noteId}>
                         <button className="subnote-title" onClick={() => setEditor({ ...child })}>
@@ -586,6 +923,14 @@ function App() {
       )}
     </div>
   )
+}
+
+function App() {
+  if (window.location.pathname.startsWith('/share/')) {
+    return <SharedNotePage />
+  }
+
+  return <WorkspaceApp />
 }
 
 function blankNote(categoryId = '') {

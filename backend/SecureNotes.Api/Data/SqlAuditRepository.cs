@@ -10,7 +10,9 @@ public sealed class SqlAuditRepository(IConfiguration configuration) : IAuditRep
         string action,
         string? ipAddress,
         string? userAgent,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? resourceType = "authentication",
+        Guid? resourceId = null)
     {
         await using var connection = CreateConnection();
         await connection.OpenAsync(cancellationToken);
@@ -23,7 +25,14 @@ public sealed class SqlAuditRepository(IConfiguration configuration) : IAuditRep
             Value = userId is null ? DBNull.Value : userId.Value
         });
         command.Parameters.Add(new SqlParameter("@Action", SqlDbType.VarChar, 80) { Value = action });
-        command.Parameters.Add(new SqlParameter("@ResourceType", SqlDbType.VarChar, 80) { Value = "authentication" });
+        command.Parameters.Add(new SqlParameter("@ResourceType", SqlDbType.VarChar, 80)
+        {
+            Value = resourceType is null ? DBNull.Value : resourceType
+        });
+        command.Parameters.Add(new SqlParameter("@ResourceId", SqlDbType.UniqueIdentifier)
+        {
+            Value = resourceId is null ? DBNull.Value : resourceId.Value
+        });
         command.Parameters.Add(new SqlParameter("@IpAddress", SqlDbType.VarChar, 45)
         {
             Value = ipAddress is null ? DBNull.Value : ipAddress

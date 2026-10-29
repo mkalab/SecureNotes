@@ -3,6 +3,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
+using SecureNotes.Api.Attachments;
 using SecureNotes.Api.Data;
 using SecureNotes.Api.Models;
 
@@ -11,7 +12,7 @@ namespace SecureNotes.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/notes")]
-public sealed class NotesController(INotesRepository notes) : ControllerBase
+public sealed class NotesController(INotesRepository notes, IAttachmentService attachments) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List(
@@ -81,6 +82,7 @@ public sealed class NotesController(INotesRepository notes) : ControllerBase
     [HttpPost("{id:guid}/delete")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
+        await attachments.DeleteForNoteAsync(CurrentUserId, id, HttpContext, cancellationToken);
         return await notes.DeleteNoteAsync(CurrentUserId, id, cancellationToken)
             ? NoContent()
             : NotFound();

@@ -10,10 +10,18 @@ const securityHeaders = {
   'Cache-Control': 'no-store',
 }
 
+const devSecurityHeaders = {
+  ...securityHeaders,
+  'Content-Security-Policy': securityHeaders['Content-Security-Policy'].replace(
+    "script-src 'self'",
+    "script-src 'self' 'unsafe-inline'",
+  ),
+}
+
 export default defineConfig({
   plugins: [react()],
   server: {
-    headers: securityHeaders,
+    headers: devSecurityHeaders,
     proxy: {
       '/api': {
         target: process.env.VITE_API_PROXY_TARGET ?? 'https://localhost:7139',

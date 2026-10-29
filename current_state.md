@@ -1,8 +1,8 @@
 # Trạng thái hiện tại — SecureNotes
 
-**Cập nhật:** 2026-10-28  
-**Giai đoạn hiện tại:** P5 — Đăng nhập Google (OIDC)
-**Trạng thái:** P0–P4 đã triển khai; code P5 cho Google OIDC và liên kết tài khoản đã triển khai, build và kiểm tra trên Docker. P5 chưa được xác minh đăng nhập end-to-end với Google vì Google Cloud OAuth client/test users chưa được cấu hình; việc đó cần operator. Việc sao lưu KEK và công cụ xoay khóa tự động vẫn là việc vận hành trước production.
+**Cập nhật:** 2026-10-29
+**Giai đoạn hiện tại:** P7 — Chia sẻ ghi chú qua link
+**Trạng thái:** P0–P7 đã triển khai và kiểm tra tích hợp. P5 chưa được xác minh đăng nhập end-to-end với Google vì Google Cloud OAuth client/test users chưa được cấu hình. Việc sao lưu KEK và công cụ xoay khóa tự động vẫn là việc vận hành trước production.
 
 ## P0 — Chuẩn bị: hoàn thành
 
@@ -11,7 +11,7 @@
 - Khai báo Node.js `>=22.12.0 <23`; môi trường đã dùng Node.js 22.
 - Thêm API health, ứng dụng React/Vite, OpenAPI, Dockerfile và Docker Compose.
 - SQL Server healthy, frontend chạy tại `http://localhost:5173`, health endpoint qua proxy hoạt động.
-- Hợp đồng API ban đầu do trợ lý tự phác thảo từ roadmap, không phải hợp đồng được người dùng cung cấp. Hiện `docs/openapi.yaml` được đồng bộ với endpoint P0–P5 đang triển khai; endpoint các giai đoạn sau chưa được ghi như API có sẵn.
+- Hợp đồng API ban đầu do trợ lý tự phác thảo từ roadmap, không phải hợp đồng được người dùng cung cấp. Hiện `docs/openapi.yaml` được đồng bộ với các endpoint đã triển khai đến P6.
 
 ## P1 — CSDL nền tảng và phân quyền: hoàn thành
 
@@ -63,7 +63,30 @@
 - UI đăng nhập có nút Google; khu vực Cài đặt liên kết yêu cầu nhập lại mật khẩu. OIDC handler chỉ được đăng ký khi đủ cấu hình hợp lệ; nếu chưa cấu hình, endpoint quay về UI với thông báo phù hợp và đăng nhập email/mật khẩu vẫn hoạt động.
 - Chưa có Google Cloud project, OAuth client, Gmail test users hoặc thông tin Client ID/Secret trong môi trường này. Vì vậy chưa thể chứng minh login thật và các ca T18–T21 hoàn chỉnh; không có nhánh đăng nhập giả lập/test-only.
 
-## Xác minh P0–P5
+## P6 — Tệp đính kèm ghi chú: hoàn thành
+
+- Hỗ trợ PDF, TXT, MD, PNG, JPG/JPEG. Server đối chiếu phần mở rộng và MIME; văn bản phải là UTF-8 hợp lệ, PDF được phân tích cấu trúc, ảnh được giải mã/chuẩn hóa và bỏ metadata trước khi lưu.
+- Mặc định tối đa 10 MiB/tệp, 20 tệp/ghi chú và 100 MiB/tài khoản. Stored procedure khóa hàng tài khoản khi đặt chỗ, tính cả các upload đang chờ để tránh vượt quota do upload song song.
+- Nội dung được mã hóa AES-256-GCM với DEK tài khoản; AAD gắn user/note/attachment ID. File ciphertext dùng tên ngẫu nhiên, nằm ngoài web root, quyền Unix chỉ cho chủ sở hữu đọc/ghi.
+- API yêu cầu đăng nhập; ownership được xác minh trong truy vấn/procedure. Upload/xóa dùng CSRF hiện có, upload có rate limit; tải xuống dùng `Content-Disposition: attachment`, `nosniff` và `no-store`. Các thao tác ghi audit log.
+- Có nút tải lên/tải xuống/xóa trong phần ghi chú; xóa ghi chú cũng xóa metadata/file liên quan. Background cleanup dọn reservation hết hạn và file mồ côi.
+- Compose lưu file trong volume `attachments-data`, chạy `database/006_p6.sql` cùng bootstrap DB và bật tính năng theo mặc định. Có kill switch `SECURENOTES_ATTACHMENTS_ENABLED`; README mô tả giới hạn, storage và vòng đời volume.
+- Đã thêm ba endpoint attachment vào `docs/openapi.yaml`; Swagger runtime trả tài liệu hợp lệ sau khi bỏ `[FromForm]` không tương thích khỏi tham số `IFormFile`.
+- `./scripts/test-p6-smoke.sh` — đạt: upload TXT/MD/PDF/PNG/JPEG, round-trip download, ciphertext trên volume và xóa file, chặn truy cập chéo tài khoản, MIME/phần mở rộng sai và file vượt 10 MiB.
+- `./scripts/test-p6-quota-smoke.sh` — đạt: với giới hạn thử nghiệm một tệp/ghi chú, hai upload đồng thời trả đúng một HTTP 201 và một HTTP 409; script khôi phục giới hạn từ `.env`.
+- Chạy lại migration P6 và kiểm tra quyền DB thành công; `notes_app` không thể đọc trực tiếp `dbo.note_attachments` nhưng thực thi được stored procedure.
+
+## P7 — Chia sẻ ghi chú qua link: hoàn thành
+
+- Tạo bearer token từ 32 byte ngẫu nhiên base64url; chỉ trả token một lần lúc tạo và chỉ lưu SHA-256 hash trong `dbo.share_links`.
+- Quyền `view`/`edit` và thời hạn được lưu trong DB; mặc định 24 giờ, giới hạn tối đa 30 ngày, có thể thu hồi. Mọi lần truy cập dùng stored procedure kiểm tra link còn hạn, chưa thu hồi, ghi chú còn tồn tại và chủ sở hữu chưa bị vô hiệu hóa.
+- Token sai, hết hạn, thu hồi hoặc quyền không đủ đều trả 404. Quyền luôn lấy từ DB; query parameter không thể nâng quyền. Các endpoint public bị rate limit theo IP, API có `no-store`, frontend có `Referrer-Policy: no-referrer`.
+- Trang chia sẻ chỉ render text và cho tải tệp của đúng ghi chú. Link `edit` yêu cầu session đăng nhập và chỉ sửa title/content; không cung cấp thao tác file hay thay đổi metadata ghi chú.
+- Tạo/thu hồi/truy cập share được ghi vào `audit_logs`; có kill switch `SECURENOTES_SHARING_ENABLED`.
+- `./scripts/test-p7-smoke.sh` — đạt: token hash, CSRF, quyền từ DB, query parameters trùng/thao túng, file thuộc đúng note, login cho edit, không đổi metadata, thu hồi/hết hạn cùng 404, audit và rate limit.
+- `notes_app` không đọc trực tiếp `dbo.share_links`; chỉ gọi stored procedures đã cấp quyền. Migration `database/007_p7.sql` được tích hợp vào luồng Compose và SQL Server local.
+
+## Xác minh P0–P7
 
 - `dotnet build backend/SecureNotes.Api/SecureNotes.Api.csproj --no-restore` — thành công, 0 lỗi; vẫn có 2 advisory dependency bắc cầu được ghi dưới đây.
 - `cd frontend && npm run build` — thành công.
@@ -75,7 +98,7 @@
 - Frontend trả HTTP 200; `/api/health` trả `ok`; `/api/health/ready` trả `ready`; `/api/auth/me` trả 204 khi chưa đăng nhập.
 - Giao diện đã mở và đăng nhập thử trong browser; tài khoản và ghi chú tạm dùng cho smoke test đã được dọn khỏi DB.
 - OpenAPI YAML, Compose config, shell syntax và `git diff --check` đều hợp lệ.
-- Hợp đồng OpenAPI có 17 path và đã đối chiếu khớp toàn bộ 17 route của Swagger runtime; không có route P2 nào thiếu hoặc được ghi nhầm là đã triển khai.
+- Hợp đồng OpenAPI có 22 path; Swagger runtime sinh tài liệu hợp lệ và có đủ ba path attachment.
 - `./scripts/test-p2-smoke.sh` — tất cả kiểm tra đăng ký/đăng nhập, CSRF, CRUD, tìm kiếm, ghi chú con, URL an toàn và phân quyền giữa hai tài khoản đều đạt; dữ liệu test được dọn sau khi chạy.
 - `./scripts/test-p2-smoke.sh` sau P3 — đạt: headers API/frontend, cookie flags, validation/password policy, Origin/CSRF, session rotation/revocation on logout, lockout/error uniformity và thời gian tối thiểu cho email có/không tồn tại, GUID công khai, 1 MiB body cap, URL scheme, spoofed UserId, sở hữu chéo, phản ứng thu hồi session sau vi phạm lặp; dọn account test thành công, audit log được giữ lại.
 - `./scripts/test-p2-smoke.sh` sau P4 — đạt toàn bộ luồng P2/P3 và xác nhận note/checklist round-trip, search sau giải mã, cột plaintext rỗng, nonce khác nhau giữa các trường, ciphertext cùng wrapped DEK có độ dài hợp lệ.
@@ -88,7 +111,9 @@
 - `docker compose run --rm db-init` — các migration `001`–`004` chạy lặp lại thành công; kiểm tra quyền xác nhận `notes_app` không đọc trực tiếp bảng nhưng gọi được stored procedures. Restart API và `/api/health/ready` đều thành công.
 - `dotnet format whitespace ... --include backend/SecureNotes.Api/Data/SqlNotesRepository.cs --no-restore` và `dotnet build backend/SecureNotes.Api/SecureNotes.Api.csproj --no-restore` — thành công, 0 lỗi.
 - API và frontend trả security headers mong đợi; trình duyệt tải được trang đăng nhập với CSP đang bật.
-- `docs/openapi.yaml`, `docker compose config --quiet`, `bash -n scripts/bootstrap-db.sh scripts/test-p2-smoke.sh` và `git diff --check` hợp lệ.
+- `docs/openapi.yaml` parse được thành YAML; `docker compose config --quiet`, `bash -n scripts/bootstrap-db.sh scripts/init-local-db.sh` và `git diff --check` hợp lệ.
+- Release build API và production build frontend thành công; `./scripts/test-p2-smoke.sh`, hai smoke test P6, health/ready API và kiểm tra Swagger runtime đều đạt.
+- `./scripts/test-p7-smoke.sh` đạt toàn bộ luồng P7; migration chạy lặp lại thành công, Swagger runtime tạo đủ các endpoint mới, health endpoint trả `ready`.
 - Build .NET còn cảnh báo dependency bắc cầu `System.Security.Cryptography.Pkcs` 9.0.18 có GHSA-846f-f764-76mx (High) và GHSA-2fmv-rv2c-59x7 (Moderate); chưa cập nhật dependency trong phạm vi P3.
 
 ## Giới hạn và việc còn lại
@@ -100,4 +125,4 @@
 - Chưa có Git remote; chưa xác minh gitleaks local.
 - Build .NET còn advisory trên dependency bắc cầu `System.Security.Cryptography.Pkcs` 9.0.18: GHSA-846f-f764-76mx (High) và GHSA-2fmv-rv2c-59x7 (Moderate).
 - Google Cloud project/test users/OAuth client chưa được tạo; chưa chạy login thật với Gmail và chưa xác nhận callback production/Google Console. P5 chỉ được xem là hoàn tất sau kiểm thử này.
-- TOTP/2FA, chia sẻ, đính kèm và admin chưa triển khai. P6 quy định đính kèm PDF, TXT, MD, PNG, JPG/JPEG; chưa có API upload trong bản hiện tại.
+- TOTP/2FA và admin chưa triển khai.

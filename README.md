@@ -1,6 +1,6 @@
 # SecureNotes
 
-SecureNotes là website ghi chú với backend ASP.NET Core, React/Vite và SQL Server. Hợp đồng API hiện tại được ghi trong [docs/openapi.yaml](./docs/openapi.yaml) và chỉ mô tả các endpoint đã triển khai; endpoint roadmap sẽ được thêm khi thực hiện.
+SecureNotes là website ghi chú với backend ASP.NET Core, React/Vite và SQL Server. Hợp đồng API hiện tại được ghi trong [docs/openapi.yaml](./docs/openapi.yaml) và chỉ mô tả các endpoint đã triển khai.
 
 ## Chạy trên Windows
 
@@ -254,7 +254,25 @@ npm run dev
 
 Sau khi ứng dụng chạy, mở giao diện và đăng ký bằng email cùng mật khẩu (tối thiểu 12 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt), rồi tạo ghi chú và danh mục. Mật khẩu được băm PBKDF2-HMAC-SHA256. Phiên đăng nhập dùng cookie HttpOnly, SameSite=Strict, session ID ngẫu nhiên 256 bit lưu phía server dưới dạng hash; mỗi tài khoản có tối đa một phiên với timeout idle 20 phút và tuyệt đối 8 giờ. Các thao tác thay đổi dữ liệu cần `X-CSRF-TOKEN` và Origin hợp lệ. Cấu hình Compose chạy ở `Development`, không dùng để triển khai production.
 
-API giới hạn body ở 1 MiB, rate limit đăng nhập/đăng ký và trả lỗi chung khi đăng nhập thất bại. Security headers được thêm cho API và frontend dev/preview; mọi API response không được cache. Cấu hình production phải đặt `Security:AllowedOrigins` chính xác cho các origin frontend công khai, dùng HTTPS và không cho phép origin wildcard.
+API giới hạn body thông thường ở 1 MiB; upload tệp được giới hạn riêng theo cấu hình. Rate limit đăng nhập/đăng ký và upload; lỗi đăng nhập dùng thông báo chung. Security headers được thêm cho API và frontend dev/preview. Riêng Vite dev server cho phép inline script để React Fast Refresh hoạt động; frontend preview giữ CSP chặt hơn (`script-src 'self'`). Mọi API response không được cache. Cấu hình production phải đặt `Security:AllowedOrigins` chính xác cho các origin frontend công khai, dùng HTTPS và không cho phép origin wildcard.
+
+### Tệp đính kèm ghi chú (P6)
+
+Mỗi ghi chú hỗ trợ tối đa 20 tệp; mỗi tệp tối đa 10 MiB và mỗi tài khoản tối đa 100 MiB. Định dạng được chấp nhận: PDF, TXT, MD, PNG, JPG/JPEG. Server kiểm tra phần mở rộng, MIME và nội dung; ảnh được chuẩn hóa trước khi lưu. Tệp được mã hóa AES-GCM bằng khóa dữ liệu của tài khoản và lưu dưới dạng ciphertext ngoài web root. Khi tải xuống, tệp luôn được trả về dưới dạng download, không hiển thị PDF trực tiếp trên trang.
+
+Compose bật tính năng theo mặc định và tự chạy migration P6 khi khởi tạo DB. Dữ liệu tệp nằm trong volume `attachments-data`, tách biệt với volume SQL Server. `docker compose down` giữ cả hai; `docker compose down -v` xóa cả database lẫn tệp đính kèm. Không xóa volume này nếu cần giữ tệp.
+
+Để tắt tính năng trên máy local, đặt `SECURENOTES_ATTACHMENTS_ENABLED=false` trong `.env` rồi khởi động lại API. Các biến `SECURENOTES_ATTACHMENTS_MAX_FILE_BYTES`, `SECURENOTES_ATTACHMENTS_MAX_FILES_PER_NOTE` và `SECURENOTES_ATTACHMENTS_MAX_TOTAL_BYTES_PER_USER` đặt giới hạn Compose; giá trị mặc định lần lượt là 10 MiB, 20 tệp và 100 MiB. Khi chạy API trực tiếp, dùng cấu hình `Attachments:MaxFileBytes`, `Attachments:MaxFilesPerNote` và `Attachments:MaxTotalBytesPerUser`. `Attachments:StoragePath` phải là đường dẫn tuyệt đối ngoài `wwwroot`; Compose local luôn dùng volume riêng `attachments-data`.
+
+Khi stack đang chạy, từ Git Bash trên Windows hoặc terminal Linux tại thư mục gốc dự án, có thể kiểm tra các luồng TXT/MD/PDF/PNG/JPEG, tải xuống, phân quyền, MIME/phần mở rộng, lưu ciphertext và giới hạn 10 MiB bằng `./scripts/test-p6-smoke.sh`. Script tạo và tự dọn các tài khoản/dữ liệu kiểm thử. Để kiểm tra quota khi hai upload chạy đồng thời, chạy `./scripts/test-p6-quota-smoke.sh`; script tạm khởi động lại API với giới hạn một tệp/ghi chú, sau đó khôi phục cấu hình từ `.env`.
+
+### Chia sẻ ghi chú qua link (P7)
+
+Mở ghi chú rồi tạo link với quyền **Chỉ xem** hoặc **Được sửa nội dung**; link hết hạn mặc định sau 24 giờ, có thể chọn 7 hoặc 30 ngày. Token ngẫu nhiên 32 byte chỉ hiển thị một lần lúc tạo; DB chỉ lưu SHA-256 hash. Giữ link ở nơi an toàn và thu hồi tại phần chia sẻ của ghi chú bất cứ lúc nào. Link hết hạn, sai hoặc bị thu hồi đều trả cùng lỗi 404.
+
+Link chỉ xem cho phép đọc nội dung dạng text và tải tệp đính kèm của đúng ghi chú. Link sửa yêu cầu người nhận đăng nhập và chỉ sửa được tiêu đề/nội dung; không cấp quyền tải lên/xóa tệp hay thay đổi thuộc tính ghi chú. Các trang link không render HTML/Markdown, phản hồi API không được cache và truy vấn link bị giới hạn theo IP. Có thể tắt nhanh bằng `SECURENOTES_SHARING_ENABLED=false` trong `.env`, sau đó khởi động lại API.
+
+Migration `database/007_p7.sql` được tự động áp dụng khi Compose khởi tạo DB. Để kiểm tra token hash, quyền view/edit, đăng nhập, thu hồi/hết hạn, phạm vi file, audit và rate limit, chạy `./scripts/test-p7-smoke.sh` từ Git Bash trên Windows hoặc terminal Linux khi stack đang hoạt động. Script tự dọn dữ liệu test.
 
 ### Bật đăng nhập Google (P5)
 

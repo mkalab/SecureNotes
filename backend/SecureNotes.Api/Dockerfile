@@ -14,6 +14,8 @@ RUN dotnet publish backend/SecureNotes.Api/SecureNotes.Api.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 COPY --from=build /app/publish .
+RUN mkdir -p /var/lib/securenotes/attachments \
+    && chown -R $APP_UID:$APP_UID /var/lib/securenotes/attachments
 USER $APP_UID
 EXPOSE 8080
 ENV ASPNETCORE_HTTP_PORTS=8080

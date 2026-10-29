@@ -33,6 +33,8 @@ services:
       - ./database/003_p3.sql:/bootstrap/003_p3.sql:ro
       - ./database/004_p4.sql:/bootstrap/004_p4.sql:ro
       - ./database/005_p5.sql:/bootstrap/005_p5.sql:ro
+      - ./database/006_p6.sql:/bootstrap/006_p6.sql:ro
+      - ./database/007_p7.sql:/bootstrap/007_p7.sql:ro
     depends_on:
       db:
         condition: service_healthy
@@ -46,6 +48,12 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_HTTP_PORTS: "8080"
       HttpsRedirection__Enabled: "false"
+      Attachments__Enabled: ${SECURENOTES_ATTACHMENTS_ENABLED:-true}
+      Attachments__MaxFileBytes: ${SECURENOTES_ATTACHMENTS_MAX_FILE_BYTES:-10485760}
+      Attachments__MaxFilesPerNote: ${SECURENOTES_ATTACHMENTS_MAX_FILES_PER_NOTE:-20}
+      Attachments__MaxTotalBytesPerUser: ${SECURENOTES_ATTACHMENTS_MAX_TOTAL_BYTES_PER_USER:-104857600}
+      Attachments__StoragePath: /var/lib/securenotes/attachments
+      Sharing__Enabled: ${SECURENOTES_SHARING_ENABLED:-true}
       SecureNotes__KeyEncryptionKey: ${SECURENOTES_KEK:?Run ./scripts/init-dev-env.sh first}
       Authentication__Google__ClientId: ${GOOGLE_OIDC_CLIENT_ID:-}
       Authentication__Google__ClientSecret: ${GOOGLE_OIDC_CLIENT_SECRET:-}
@@ -56,6 +64,8 @@ services:
     depends_on:
       db-init:
         condition: service_completed_successfully
+    volumes:
+      - attachments-data:/var/lib/securenotes/attachments
     expose:
       - "8080"
     restart: unless-stopped
@@ -75,3 +85,4 @@ services:
 
 volumes:
   sqlserver-data:
+  attachments-data:

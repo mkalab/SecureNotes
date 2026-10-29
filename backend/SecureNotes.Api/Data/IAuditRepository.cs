@@ -7,5 +7,7 @@ public interface IAuditRepository
         string action,
         string? ipAddress,
         string? userAgent,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        string? resourceType = "authentication",
+        Guid? resourceId = null);
 }

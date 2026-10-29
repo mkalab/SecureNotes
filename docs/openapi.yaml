@@ -3,7 +3,7 @@ info:
   title: SecureNotes API
   version: 0.2.0
   description: |
-    Current implemented API contract for the P0-P5 application, written from
+    Current implemented API contract for the P0-P6 application, written from
     the project roadmap and verified against the ASP.NET Core controllers.
     No API contract was supplied separately. Future roadmap endpoints are
     intentionally omitted until they are implemented. All state-changing
@@ -16,6 +16,7 @@ tags:
   - name: System
   - name: Authentication
   - name: Notes
+  - name: Attachments
   - name: Categories
 paths:
   /api/health:
@@ -438,6 +439,344 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+  /api/notes/{noteId}/attachments:
+    parameters:
+      - $ref: "#/components/parameters/NoteId"
+    get:
+      tags: [Attachments]
+      operationId: listNoteAttachments
+      summary: List attachments of a note owned by the current user
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Attachments returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NoteAttachment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          description: Attachments are disabled by server configuration
+    post:
+      tags: [Attachments]
+      operationId: uploadNoteAttachment
+      summary: Upload a validated and encrypted attachment to an owned note
+      security:
+        - sessionCookie: []
+          csrfToken: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: Attachment validated, stored encrypted, and returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NoteAttachment"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Origin validation failed
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Per-note attachment count or per-user quota exceeded
+        "413":
+          description: File or upload request exceeds the configured size limit
+        "429":
+          description: Upload rate limit exceeded
+        "503":
+          description: Attachments are disabled by server configuration
+  /api/notes/{noteId}/attachments/{attachmentId}/download:
+    parameters:
+      - $ref: "#/components/parameters/NoteId"
+      - $ref: "#/components/parameters/AttachmentId"
+    get:
+      tags: [Attachments]
+      operationId: downloadNoteAttachment
+      summary: Download an attachment owned by the current user
+      description: Returns a decrypted attachment with Content-Disposition attachment; PDF is never rendered inline.
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Attachment bytes
+          headers:
+            Content-Disposition:
+              description: Safe attachment filename
+              schema:
+                type: string
+            X-Content-Type-Options:
+              schema:
+                type: string
+                example: nosniff
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            text/plain:
+              schema:
+                type: string
+                format: binary
+            text/markdown:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          description: Attachments are disabled by server configuration
+  /api/notes/{noteId}/attachments/{attachmentId}/delete:
+    parameters:
+      - $ref: "#/components/parameters/NoteId"
+      - $ref: "#/components/parameters/AttachmentId"
+    post:
+      tags: [Attachments]
+      operationId: deleteNoteAttachment
+      summary: Delete an attachment from an owned note
+      security:
+        - sessionCookie: []
+          csrfToken: []
+      responses:
+        "204":
+          description: Attachment metadata and encrypted file deleted
+        "400":
+          $ref: "#/components/responses/CsrfFailure"
+        "403":
+          description: Origin validation failed
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          description: Attachments are disabled by server configuration
+  /api/notes/{noteId}/shares:
+    parameters:
+      - $ref: "#/components/parameters/NoteId"
+    get:
+      tags: [Notes]
+      operationId: listNoteShares
+      summary: List share-link metadata for a note owned by the current user
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Share metadata without bearer tokens
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NoteShare"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          description: Sharing is disabled by server configuration
+    post:
+      tags: [Notes]
+      operationId: createNoteShare
+      summary: Create a short-lived view or edit share link
+      description: The 32-byte random bearer token is returned once and never stored in plaintext.
+      security:
+        - sessionCookie: []
+          csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateNoteShareRequest"
+      responses:
+        "201":
+          description: Share link created; save the returned token now
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatedNoteShare"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Origin validation failed
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          description: Sharing is disabled by server configuration
+  /api/notes/{noteId}/shares/{shareId}/revoke:
+    parameters:
+      - $ref: "#/components/parameters/NoteId"
+      - $ref: "#/components/parameters/ShareId"
+    post:
+      tags: [Notes]
+      operationId: revokeNoteShare
+      summary: Revoke a share link for a note owned by the current user
+      security:
+        - sessionCookie: []
+          csrfToken: []
+      responses:
+        "204":
+          description: Share link revoked
+        "400":
+          $ref: "#/components/responses/CsrfFailure"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Origin validation failed
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          description: Sharing is disabled by server configuration
+  /api/shared/{token}:
+    parameters:
+      - $ref: "#/components/parameters/ShareToken"
+    get:
+      tags: [Notes]
+      operationId: getSharedNote
+      summary: Read a note through an active share link
+      description: Returns only plain text note fields. Invalid, expired, and revoked tokens all return 404.
+      responses:
+        "200":
+          description: Shared note content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SharedNote"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          description: Shared-link request rate limit exceeded
+        "503":
+          description: Sharing is disabled by server configuration
+  /api/shared/{token}/attachments:
+    parameters:
+      - $ref: "#/components/parameters/ShareToken"
+    get:
+      tags: [Notes]
+      operationId: listSharedNoteAttachments
+      summary: List attachments belonging to the shared note
+      responses:
+        "200":
+          description: Attachments belonging to this note only
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NoteAttachment"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          description: Shared-link request rate limit exceeded
+  /api/shared/{token}/attachments/{attachmentId}/download:
+    parameters:
+      - $ref: "#/components/parameters/ShareToken"
+      - $ref: "#/components/parameters/AttachmentId"
+    get:
+      tags: [Notes]
+      operationId: downloadSharedNoteAttachment
+      summary: Download an attachment belonging to the shared note
+      description: The attachment is checked against the share's note ID and is always returned as a download.
+      responses:
+        "200":
+          description: Attachment bytes
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+            X-Content-Type-Options:
+              schema:
+                type: string
+                example: nosniff
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            text/plain:
+              schema:
+                type: string
+                format: binary
+            text/markdown:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          description: Shared-link request rate limit exceeded
+  /api/shared/{token}/update:
+    parameters:
+      - $ref: "#/components/parameters/ShareToken"
+    post:
+      tags: [Notes]
+      operationId: updateSharedNoteText
+      summary: Update only title and content through an edit link
+      description: Requires an authenticated application session and CSRF token. Attachments and other note metadata cannot be changed.
+      security:
+        - sessionCookie: []
+          csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SharedNoteUpdateRequest"
+      responses:
+        "200":
+          description: Updated shared text
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SharedNote"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Origin validation failed
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          description: Shared-link request rate limit exceeded
+        "503":
+          description: Sharing is disabled by server configuration
   /api/categories:
     get:
       tags: [Categories]
@@ -575,6 +914,39 @@ components:
       schema:
         type: string
         format: uuid
+    NoteId:
+      name: noteId
+      in: path
+      required: true
+      description: Note GUID
+      schema:
+        type: string
+        format: uuid
+    AttachmentId:
+      name: attachmentId
+      in: path
+      required: true
+      description: Attachment GUID
+      schema:
+        type: string
+        format: uuid
+    ShareId:
+      name: shareId
+      in: path
+      required: true
+      description: Share-link identifier
+      schema:
+        type: string
+        format: uuid
+    ShareToken:
+      name: token
+      in: path
+      required: true
+      description: 32-byte random base64url bearer token
+      schema:
+        type: string
+        minLength: 43
+        maxLength: 43
   schemas:
     HealthResponse:
       type: object
@@ -762,6 +1134,109 @@ components:
           maxLength: 1000
         isCompleted:
           type: boolean
+    NoteAttachment:
+      type: object
+      required: [attachmentId, noteId, fileName, contentType, sizeBytes, createdAt]
+      properties:
+        attachmentId:
+          type: string
+          format: uuid
+        noteId:
+          type: string
+          format: uuid
+        fileName:
+          type: string
+          maxLength: 255
+        contentType:
+          type: string
+          enum: [application/pdf, text/plain, text/markdown, image/png, image/jpeg]
+        sizeBytes:
+          type: integer
+          format: int64
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+    NoteShare:
+      type: object
+      required: [shareId, permission, expiresAt, isExpired, createdAt]
+      properties:
+        shareId:
+          type: string
+          format: uuid
+        permission:
+          type: string
+          enum: [view, edit]
+        expiresAt:
+          type: string
+          format: date-time
+        isExpired:
+          type: boolean
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    CreateNoteShareRequest:
+      type: object
+      required: [permission]
+      properties:
+        permission:
+          type: string
+          enum: [view, edit]
+        expiresInHours:
+          type: integer
+          description: 1 to 720 hours; omitted or zero defaults to 24 hours
+          minimum: 1
+          maximum: 720
+          default: 24
+    CreatedNoteShare:
+      type: object
+      required: [shareId, token, permission, expiresAt]
+      properties:
+        shareId:
+          type: string
+          format: uuid
+        token:
+          type: string
+          minLength: 43
+          maxLength: 43
+        permission:
+          type: string
+          enum: [view, edit]
+        expiresAt:
+          type: string
+          format: date-time
+    SharedNote:
+      type: object
+      required: [title, content, permission, expiresAt]
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        content:
+          type: string
+          maxLength: 20000
+        permission:
+          type: string
+          enum: [view, edit]
+        expiresAt:
+          type: string
+          format: date-time
+    SharedNoteUpdateRequest:
+      type: object
+      required: [title, content]
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        content:
+          type: string
+          maxLength: 20000
     Category:
       type: object
       required: [categoryId, name, createdAt]

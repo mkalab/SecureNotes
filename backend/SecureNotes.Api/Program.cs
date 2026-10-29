@@ -5,21 +5,31 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.WebUtilities;
+using SecureNotes.Api.Attachments;
 using SecureNotes.Api.Data;
 using SecureNotes.Api.Security;
+using SecureNotes.Api.Sharing;
 
 var builder = WebApplication.CreateBuilder(args);
 var isDevelopment = builder.Environment.IsDevelopment();
 const int maxRequestBodySize = 1_048_576;
+var maxAttachmentFileBytes = builder.Configuration.GetValue<long?>("Attachments:MaxFileBytes")
+    ?? 10 * 1024 * 1024;
+var maxAttachmentRequestBodySize = checked(maxAttachmentFileBytes + 1_048_576);
 const int sessionIdleTimeoutMinutes = 20;
 const int absoluteSessionTimeoutHours = 8;
 var allowedOrigins = builder.Configuration.GetSection("Security:AllowedOrigins").Get<string[]>() ?? [];
 
 builder.Services.AddScoped<SecureNotes.Api.Data.IUserRepository, SecureNotes.Api.Data.SqlUserRepository>();
 builder.Services.AddScoped<SecureNotes.Api.Data.INotesRepository, SecureNotes.Api.Data.SqlNotesRepository>();
+builder.Services.AddScoped<IAttachmentRepository, SqlAttachmentRepository>();
+builder.Services.AddScoped<IAttachmentService, AttachmentService>();
+builder.Services.AddScoped<INoteShareRepository, SqlNoteShareRepository>();
+builder.Services.AddScoped<IShareLinkService, ShareLinkService>();
 builder.Services.AddScoped<IAuditRepository, SqlAuditRepository>();
 builder.Services.AddScoped<ISessionRepository, SqlSessionRepository>();
 builder.Services.AddScoped<P4EncryptionMigrationService>();
@@ -27,6 +37,19 @@ builder.Services.AddScoped<AppSessionService>();
 builder.Services.AddScoped<GoogleOidcEvents>();
 builder.Services.AddSingleton<SecureNotes.Api.Security.PasswordHasher>();
 builder.Services.AddSingleton<CryptoService>();
+builder.Services.AddSingleton<AttachmentContentValidator>();
+builder.Services.AddHostedService<AttachmentCleanupService>();
+builder.Services.AddOptions<AttachmentOptions>()
+    .Bind(builder.Configuration.GetSection("Attachments"))
+    .Validate(options => options.IsValid(), "Attachment limits or storage path are invalid.")
+    .ValidateOnStart();
+builder.Services.AddOptions<ShareOptions>()
+    .Bind(builder.Configuration.GetSection("Sharing"))
+    .ValidateOnStart();
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = maxAttachmentRequestBodySize;
+});
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.AddServerHeader = false;
@@ -178,6 +201,26 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
+    options.AddPolicy("attachment-upload", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(10),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+    options.AddPolicy("shared-links", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,
+                Window = TimeSpan.FromMinutes(5),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
 });
 builder.Services.AddAntiforgery(options =>
 {
@@ -239,7 +282,11 @@ app.Use(async (context, next) =>
     var maxBodySizeFeature = context.Features.Get<IHttpMaxRequestBodySizeFeature>();
     if (maxBodySizeFeature is { IsReadOnly: false })
     {
-        maxBodySizeFeature.MaxRequestBodySize = maxRequestBodySize;
+        var isAttachmentUpload = HttpMethods.IsPost(context.Request.Method)
+            && context.Request.Path.Value?.EndsWith("/attachments", StringComparison.OrdinalIgnoreCase) == true;
+        maxBodySizeFeature.MaxRequestBodySize = isAttachmentUpload
+            ? maxAttachmentRequestBodySize
+            : maxRequestBodySize;
     }
 
     await next();

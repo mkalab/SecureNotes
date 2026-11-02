@@ -9,4 +9,8 @@
 **/dist
 **/.vite
 **/*.user
+**/*.bak
+**/*.old
+**/*.map
+**/logs
 uploads

@@ -1,14 +1,14 @@
 # SECURITY SCORECARD — SecureNotes
 
-> Bảng tự chấm từng mục của đề (Bảo mật ứng dụng web và CSDL). Mỗi dòng trả lời ba câu hỏi mà giảng viên sẽ hỏi: **chặn bằng gì, nằm ở đâu trong code, chứng minh bằng gì.**
-> Đi kèm `roadmap.md` (mã ca kiểm thử T01–T25 nằm ở mục 6 của roadmap).
+> Bảng tự chấm từng mục của đề (Bảo mật ứng dụng web và CSDL). Mỗi dòng trả lời ba câu hỏi mà giảng viên sẽ hỏi: **chặn bằng gì, nằm ở đâu trong code, chứng minh bằng gì.** Buổi kiểm thử thực hiện trên máy nhóm; không yêu cầu bằng chứng deploy public.
+> Đi kèm [`roadmap_attw.md`](./roadmap_attw.md) (mã ca kiểm thử T01–T25 nằm ở mục 6).
 
 ## Cách dùng
 
 1. Cột **Vị trí code**: điền đường dẫn + tên hàm/SP khi làm xong, ví dụ `backend/Services/PasswordHasher.cs:Hash()`. Trong mã nguồn, chỗ đó phải có chú thích dạng `// [Phần 3 #1] ...`.
 2. Cột **Bằng chứng**: tên file trong `docs/evidence/`, quy ước `T01_before.png` (bản baseline, tấn công thành công) và `T01_after.png` (bản gia cố, bị chặn). Mục không tấn công được từ bên ngoài thì ghi tên script hoặc ảnh chụp cấu hình.
 3. Cột **Trạng thái**: ☐ chưa làm · ◐ đang làm · ☑ xong và có bằng chứng. Chỉ đánh ☑ khi cả ba cột đã điền.
-4. Người phụ trách theo mã vai trò A–E ở mục 10 của `roadmap.md`. Họ tên điền ở đó, không lặp lại ở đây.
+4. Người phụ trách theo mã vai trò A–E ở mục 10 của [`roadmap_attw.md`](./roadmap_attw.md). Họ tên điền ở đó, không lặp lại ở đây.
 5. Trước buổi báo cáo (P12): không còn dòng MUST nào ở trạng thái ☐ hoặc ◐.
 
 ---
@@ -22,7 +22,7 @@
 | P1-3 | SQL Injection | Stored Procedure tham số hóa, `sp_executesql`, tài khoản DB chỉ `EXECUTE` | C | T01, T02 | | | ☐ |
 | P1-4 | Tấn công xác thực | PBKDF2, khóa tạm, rate limit (cả bước 2FA), CAPTCHA, 2FA, session mạnh, kiểm tra `state` OAuth | A | T07, T08, T18, T19, T20, T21, T24 | | | ☐ |
 | P1-5 | Lỗi logic | Kiểm tra chủ sở hữu mọi truy vấn (IDOR), link chia sẻ có token/hạn/thu hồi, chống HPP, whitelist trường khi đăng ký, xử lý nguyên tử chống race | B | T09, T10, T12, T22 | | | ☐ |
-| P1-6 | Trình duyệt và riêng tư | CSP, HSTS, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors`, `Cache-Control: no-store` cho trang nhạy cảm | E (+D) | T25 | | | ☐ |
+| P1-6 | Trình duyệt và riêng tư | CSP, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors`, `Cache-Control: no-store` cho trang nhạy cảm; HSTS chỉ khi HTTPS/Production | E (+D) | T25 | | | ☐ |
 | P1-7 | Sửa/xóa log | `audit_logs` chỉ ghi thêm (`DENY UPDATE/DELETE`), chuỗi băm phát hiện sửa log | C | T13 | | | ☐ |
 
 ## Phần 2 — Biện pháp bảo mật (cần ≥ 4, mục tiêu 7/7)
@@ -31,7 +31,7 @@
 |---|---|---|---|---|---|---|---|
 | P2-1 | Xác thực và trao quyền | Mật khẩu mạnh + băm, khóa tạm, CAPTCHA, 2FA, RBAC, đổi tên tài khoản mặc định, tắt autocomplete trên form | A | T07, T12, T24 | | | ☐ |
 | P2-2 | Phiên làm việc | Token 256 bit, không đặt trên URL, timeout, 1 phiên/tài khoản, phạm vi cookie chặt, token CSRF, kết thúc phiên kiểu phản ứng | A | T08 | | | ☐ |
-| P2-3 | Máy chủ web | Cấm liệt kê thư mục, chặn `PUT/DELETE/TRACE/MOVE`, xóa trang mặc định, quyền tối thiểu, cập nhật bản vá | E | T17, T23 | | | ☐ |
+| P2-3 | Máy chủ web | API/Compose local không public; chặn method không hỗ trợ, không lộ banner/Swagger ở Production; Nginx hardening là tùy chọn | E | T17, T23 | | | ☐ |
 | P2-4 | CSDL web | Truy vấn tham số hóa/Stored Procedure, phân quyền theo vai trò | C | T01, T02, T15 | | | ☐ |
 | P2-5 | Hệ thống file | Upload ngoài web root, không quyền thực thi, bộ lọc tên/đường dẫn, xóa file `.bak/.old`, mã nguồn biên dịch | B (+E) | T11, T23 | | | ☐ |
 | P2-6 | Trình duyệt | CSP, `object-src 'none'`, không nhúng plugin hay nội dung ngoài, header bảo mật | E (+D) | T25 | | | ☐ |
@@ -48,9 +48,9 @@
 | P3-5 | Mật khẩu CSDL yếu/mặc định | ≥ 10 ký tự đủ 4 loại; `CHECK_POLICY`/`CHECK_EXPIRATION` nếu nền tảng hỗ trợ | E | Không tấn công từ ngoài: ảnh chụp cấu hình + script kiểm tra | | | ☐ |
 | P3-6 | Lộ chuỗi kết nối | Biến môi trường/Docker secrets hoặc Data Protection API; không commit vào git | E | `gitleaks` sạch (cả lịch sử git) + ảnh chụp cấu hình | | | ☐ |
 | P3-7 | Dữ liệu nhạy cảm dạng rõ | Băm mật khẩu, AES-256-GCM cho ghi chú/TOTP secret (TDE: nếu kịp) | C | T14 | | | ☐ |
-| P3-8 | Truyền CSDL không mã hóa | TLS giữa API và SQL Server (`Encrypt=True`, `TrustServerCertificate=False`) | E | T16 (bắt gói tin trước/sau) | | | ☐ |
-| P3-9 | Lỗi cấu hình HQTCSDL | Cập nhật bản vá, tắt tính năng thừa, chỉ lắng nghe mạng nội bộ, quyền thư mục dữ liệu | E | `nmap` từ ngoài không thấy 1433 + ảnh chụp cấu hình | | | ☐ |
-| P3-10 | Thiếu audit | Bảng `audit_logs` + SQL Server Audit/Extended Events | C | T13 + ảnh chụp cấu hình Audit | | | ☐ |
+| P3-8 | Truyền CSDL không mã hóa | SQL transport encryption bật (`Encrypt=True`); cấu hình production tùy chọn xác thực chứng chỉ (`TrustServerCertificate=False`) | E | T16: kiểm tra connection string và `encrypt_option` của kết nối API trong SQL Server; không cần bắt gói tin Internet | | | ☐ |
+| P3-9 | Lỗi cấu hình HQTCSDL | SQL/API không public; SQL bind loopback; quyền DB tối thiểu và image cập nhật | E | `docker compose config/ps` và `ss`/scan localhost xác nhận SQL chỉ bind `127.0.0.1:1433`, API không có host port | | | ☐ |
+| P3-10 | Thiếu audit | Bảng `audit_logs` bất biến là MUST; SQL Server Audit/Extended Events là SHOULD/tùy chọn | C | T13 + kiểm tra audit log; nếu có bật XE thì kèm ảnh/cấu hình session | | | ☐ |
 
 ---
 
@@ -87,9 +87,9 @@ Giảng viên white-box chấm các mục này bằng cách đọc cấu hình, 
 | P3-3, P3-4 | Script `db/verify_permissions.sql`: đăng nhập `notes_app`, thử `SELECT` bảng gốc (bị từ chối) và gọi SP (chạy được) |
 | P3-5 | Ảnh chụp `CREATE LOGIN ... CHECK_POLICY` và trạng thái login `sa` bị vô hiệu hóa/đổi tên |
 | P3-6 | Kết quả `gitleaks detect` sạch; ảnh chụp cấu hình biến môi trường/secrets (đã che giá trị) |
-| P3-8 | Ảnh bắt gói tin API↔DB trước và sau khi bật TLS |
-| P3-9 | Kết quả `nmap` từ máy ngoài; ảnh chụp cấu hình lắng nghe của SQL Server |
-| P3-10 | Ảnh chụp bảng `audit_logs` có dòng sự kiện; cấu hình SQL Server Audit |
+| P3-8 | Connection string che mật khẩu và kết quả truy vấn `sys.dm_exec_connections.encrypt_option` cho kết nối API |
+| P3-9 | Kết quả `docker compose ps/config` và `ss` hoặc scan localhost chứng minh API không publish port, DB chỉ bind loopback |
+| P3-10 | Kết quả smoke test và ảnh chụp bảng `audit_logs`; Extended Events là SHOULD, không chặn demo nếu chưa bật |
 
 ---
 
@@ -97,7 +97,7 @@ Giảng viên white-box chấm các mục này bằng cách đọc cấu hình, 
 
 Sửa danh sách này theo thực tế khi nộp; mục nào đã khắc phục thì xóa.
 
-- [ ] Chưa chống tấn công từ chối dịch vụ (DoS) quy mô lớn; hệ thống chạy trên một VPS duy nhất.
+- [ ] Chưa chống tấn công từ chối dịch vụ (DoS) quy mô lớn; hệ thống demo chạy trên máy nhóm, không phải dịch vụ public có HA.
 - [ ] Tài liệu `pdf`/`docx` không được làm sạch nội dung như ảnh; chỉ kiểm tra cấu trúc, cho tải xuống, và quét ClamAV nếu đã làm.
 - [ ] Chưa có quên mật khẩu và xác minh email (đã tạm bỏ tính năng gửi mail).
 - [ ] Mã hóa dữ liệu bảo vệ khi DB/backup bị lộ, **không** chống được kẻ chiếm hoàn toàn máy chủ ứng dụng (khóa KEK nằm trong bộ nhớ của nó).

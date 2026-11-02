@@ -1,8 +1,8 @@
 # Trạng thái hiện tại — SecureNotes
 
-**Cập nhật:** 2026-10-29
-**Giai đoạn hiện tại:** P8 — Quản trị và kiểm soát truy cập
-**Trạng thái:** P0–P8 đã triển khai và kiểm tra tích hợp. P5 chưa được xác minh đăng nhập end-to-end với Google vì Google Cloud OAuth client/test users chưa được cấu hình. Việc sao lưu KEK và công cụ xoay khóa tự động vẫn là việc vận hành trước production.
+**Cập nhật:** 2026-11-02
+**Giai đoạn hiện tại:** P9 — hardening cho máy demo local
+**Trạng thái:** P8 smoke test đạt toàn bộ 30 ca trên Compose. P9 có cấu hình local/production tách biệt; nhóm sẽ demo trên máy của mình, không yêu cầu VPS, domain hay triển khai public. Production overlay được giữ làm tùy chọn. P5 Google chỉ cần kiểm tra end-to-end nếu nhóm chọn demo đăng nhập Google; luồng mật khẩu là phương án local sẵn có.
 
 ## P0 — Chuẩn bị: hoàn thành
 
@@ -124,20 +124,20 @@
 - `docs/openapi.yaml` parse được thành YAML; `docker compose config --quiet`, `bash -n scripts/bootstrap-db.sh scripts/init-local-db.sh` và `git diff --check` hợp lệ.
 - Release build API và production build frontend thành công; `./scripts/test-p2-smoke.sh`, hai smoke test P6, health/ready API và kiểm tra Swagger runtime đều đạt.
 - `./scripts/test-p7-smoke.sh` đạt toàn bộ luồng P7, gồm kill switch tắt/mở; migration chạy lặp lại thành công, Swagger runtime có 28 path gồm đủ endpoint P7, health endpoint trả `ready`.
-- `./scripts/test-p8-smoke.sh` — đạt: bật TOTP, recovery code dùng một lần, đăng nhập admin, làm mới role từ DB, khóa tài khoản, thu hồi phiên/share, audit không chứa nội dung note và quyền append-only của audit log.
+- `./scripts/test-p8-smoke.sh` — đạt 30/30 ca: bật TOTP, recovery code dùng một lần, đăng nhập admin, làm mới role từ DB, khóa tài khoản, thu hồi phiên/share, audit không chứa nội dung note và quyền append-only của audit log.
 - `docker compose run --rm db-init` — migration P8 chạy lặp lại thành công; `notes_app` bị từ chối đọc trực tiếp các bảng nhạy cảm và sửa audit log.
 - Release build API và production build frontend thành công; frontend lint hoàn tất với 3 cảnh báo `react(set-state-in-effect)` trong `App.jsx`.
 - `docs/openapi.yaml` parse thành YAML hợp lệ, có 40 path và 147 tham chiếu nội bộ hợp lệ; Compose config, shell syntax và `git diff --check` đều đạt.
 - API/frontend chạy sau Docker build; readiness trả `ready`, Serilog tạo file trong volume `api-logs`.
-- Build .NET còn cảnh báo dependency bắc cầu `System.Security.Cryptography.Pkcs` 9.0.18 có GHSA-846f-f764-76mx (High) và GHSA-2fmv-rv2c-59x7 (Moderate); chưa cập nhật dependency trong phạm vi P3.
+- Nâng dependency bắc cầu `System.Security.Cryptography.Pkcs` lên 9.0.21; `dotnet build` sạch 0 warning và `dotnet list package --vulnerable --include-transitive` không còn package dễ tổn thương tại lần kiểm tra 2026-11-02.
 
 ## Giới hạn và việc còn lại
 
-- Chưa thực hiện backup KEK ra khỏi môi trường local; operator cần lưu bí mật này trong secret manager/offline backup mã hóa trước production. Repository chưa có công cụ rewrap/rotation KEK tự động; không thay KEK nếu chưa có kế hoạch và công cụ đã kiểm chứng.
-- HSTS chỉ được phát ở môi trường không phải Development; cấu hình Compose hiện tại vẫn dùng HTTP và không dành cho Internet. Trên production cần HTTPS và cấu hình `Security:AllowedOrigins` theo đúng domain frontend.
-- Docker đang chạy `Development`; cookie Secure trong production được bật khi môi trường không phải Development. Không đưa cấu hình Compose hiện tại lên Internet.
-- ASP.NET Data Protection key hiện ở filesystem container và không được lưu qua vòng đời container; cần thiết kế key ring bền vững/bảo vệ khóa trước staging/production.
+- Chưa xác minh đầy đủ buổi demo cuối trên đúng máy nhóm; cần chạy lại P6/P7/P8 smoke tests, readiness và kiểm tra port loopback trước ngày demo.
+- Chưa bật SQL Server Extended Events vì login `sa` bị vô hiệu hóa và chưa có sysadmin thay thế cấu hình trong `.env`; đây là SHOULD, không chặn demo. `notes_app` không được nâng quyền để thay thế.
+- Chưa thực hiện backup KEK ra khỏi môi trường local; giữ bản sao lưu an toàn trước buổi demo. Repository chưa có công cụ rewrap/rotation KEK tự động; không thay KEK nếu chưa có kế hoạch và công cụ đã kiểm chứng.
+- Compose demo chạy `Development` qua localhost HTTP có chủ đích; HSTS/public TLS/certificate verification thuộc cấu hình production tùy chọn, không phải tiêu chí demo local.
+- ASP.NET Data Protection keys được lưu bền qua restart trong production overlay; compose demo local vẫn không cần overlay này.
 - Chưa có Git remote; chưa xác minh gitleaks local.
-- Build .NET còn advisory trên dependency bắc cầu `System.Security.Cryptography.Pkcs` 9.0.18: GHSA-846f-f764-76mx (High) và GHSA-2fmv-rv2c-59x7 (Moderate).
-- Google Cloud project/test users/OAuth client chưa được tạo; chưa chạy login thật với Gmail và chưa xác nhận callback production/Google Console. P5 chỉ được xem là hoàn tất sau kiểm thử này.
+- Google Cloud project/test users/OAuth client chưa được tạo; chưa chạy login thật với Gmail. Chỉ cần cấu hình và xác nhận nếu nhóm chọn đưa Google login vào buổi demo; callback localhost là mục tiêu, không cần production callback.
 - P8 smoke test chạy trong Compose; kiểm thử cấp admin trên SQL Server local ngoài Compose chưa chạy riêng.

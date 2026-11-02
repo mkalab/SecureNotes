@@ -1,0 +1,198 @@
+2026-11-02 13:57:54.306 +07:00 [INF] User profile is available. Using '/home/mkalab/.aspnet/DataProtection-Keys' as key repository; keys will not be encrypted at rest.
+2026-11-02 13:57:54.865 +07:00 [INF] Now listening on: http://localhost:5246
+2026-11-02 13:57:54.876 +07:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-11-02 13:57:54.877 +07:00 [INF] Hosting environment: Development
+2026-11-02 13:57:54.880 +07:00 [INF] Content root path: /home/mkalab/SecureNotes/backend/SecureNotes.Api
+2026-11-02 13:58:23.508 +07:00 [INF] Request starting HTTP/1.1 GET http://localhost:5246/api/csrf - null null
+2026-11-02 13:58:23.776 +07:00 [WRN] Failed to determine the https port for redirect.
+2026-11-02 13:58:24.079 +07:00 [INF] Executing endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:24.110 +07:00 [INF] Route matched with {action = "GetCsrfToken", controller = "Auth"}. Executing controller action with signature Microsoft.AspNetCore.Mvc.IActionResult GetCsrfToken() on controller SecureNotes.Api.Controllers.AuthController (SecureNotes.Api).
+2026-11-02 13:58:24.159 +07:00 [WRN] The 'Cache-Control' and 'Pragma' headers have been overridden and set to 'no-cache, no-store' and 'no-cache' respectively to prevent caching of this response. Any response that uses antiforgery should not be cached.
+2026-11-02 13:58:24.173 +07:00 [INF] Executing OkObjectResult, writing value of type 'SecureNotes.Api.Controllers.AuthController+CsrfTokenResponse'.
+2026-11-02 13:58:24.340 +07:00 [INF] Executed action SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api) in 221.8164ms
+2026-11-02 13:58:24.347 +07:00 [INF] Executed endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:24.351 +07:00 [INF] Request finished HTTP/1.1 GET http://localhost:5246/api/csrf - 200 null application/json; charset=utf-8 851.449ms
+2026-11-02 13:58:30.859 +07:00 [INF] Request starting HTTP/1.1 GET http://localhost:5246/api/csrf - null null
+2026-11-02 13:58:30.885 +07:00 [INF] Executing endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:30.889 +07:00 [INF] Route matched with {action = "GetCsrfToken", controller = "Auth"}. Executing controller action with signature Microsoft.AspNetCore.Mvc.IActionResult GetCsrfToken() on controller SecureNotes.Api.Controllers.AuthController (SecureNotes.Api).
+2026-11-02 13:58:30.901 +07:00 [WRN] The 'Cache-Control' and 'Pragma' headers have been overridden and set to 'no-cache, no-store' and 'no-cache' respectively to prevent caching of this response. Any response that uses antiforgery should not be cached.
+2026-11-02 13:58:30.902 +07:00 [INF] Executing OkObjectResult, writing value of type 'SecureNotes.Api.Controllers.AuthController+CsrfTokenResponse'.
+2026-11-02 13:58:30.906 +07:00 [INF] Executed action SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api) in 13.2762ms
+2026-11-02 13:58:30.910 +07:00 [INF] Executed endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:30.912 +07:00 [INF] Request finished HTTP/1.1 GET http://localhost:5246/api/csrf - 200 null application/json; charset=utf-8 58.2827ms
+2026-11-02 13:58:30.964 +07:00 [INF] Request starting HTTP/1.1 POST http://localhost:5246/api/auth/register - application/json 72
+2026-11-02 13:58:31.052 +07:00 [INF] Request finished HTTP/1.1 POST http://localhost:5246/api/auth/register - 403 null application/json; charset=utf-8 88.0105ms
+2026-11-02 13:58:31.115 +07:00 [INF] Request starting HTTP/1.1 GET http://localhost:5246/api/csrf - null null
+2026-11-02 13:58:31.120 +07:00 [INF] Executing endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:31.125 +07:00 [INF] Route matched with {action = "GetCsrfToken", controller = "Auth"}. Executing controller action with signature Microsoft.AspNetCore.Mvc.IActionResult GetCsrfToken() on controller SecureNotes.Api.Controllers.AuthController (SecureNotes.Api).
+2026-11-02 13:58:31.190 +07:00 [WRN] The 'Cache-Control' and 'Pragma' headers have been overridden and set to 'no-cache, no-store' and 'no-cache' respectively to prevent caching of this response. Any response that uses antiforgery should not be cached.
+2026-11-02 13:58:31.192 +07:00 [INF] Executing OkObjectResult, writing value of type 'SecureNotes.Api.Controllers.AuthController+CsrfTokenResponse'.
+2026-11-02 13:58:31.192 +07:00 [INF] Executed action SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api) in 64.909ms
+2026-11-02 13:58:31.192 +07:00 [INF] Executed endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:31.197 +07:00 [INF] Request finished HTTP/1.1 GET http://localhost:5246/api/csrf - 200 null application/json; charset=utf-8 77.6698ms
+2026-11-02 13:58:31.229 +07:00 [INF] Request starting HTTP/1.1 POST http://localhost:5246/api/auth/login - application/json 68
+2026-11-02 13:58:31.236 +07:00 [INF] Request finished HTTP/1.1 POST http://localhost:5246/api/auth/login - 403 null application/json; charset=utf-8 5.0402ms
+2026-11-02 13:58:31.258 +07:00 [INF] Request starting HTTP/1.1 GET http://localhost:5246/api/csrf - null null
+2026-11-02 13:58:31.263 +07:00 [INF] Executing endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:31.264 +07:00 [INF] Route matched with {action = "GetCsrfToken", controller = "Auth"}. Executing controller action with signature Microsoft.AspNetCore.Mvc.IActionResult GetCsrfToken() on controller SecureNotes.Api.Controllers.AuthController (SecureNotes.Api).
+2026-11-02 13:58:31.266 +07:00 [WRN] The 'Cache-Control' and 'Pragma' headers have been overridden and set to 'no-cache, no-store' and 'no-cache' respectively to prevent caching of this response. Any response that uses antiforgery should not be cached.
+2026-11-02 13:58:31.268 +07:00 [INF] Executing OkObjectResult, writing value of type 'SecureNotes.Api.Controllers.AuthController+CsrfTokenResponse'.
+2026-11-02 13:58:31.270 +07:00 [INF] Executed action SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api) in 6.2172ms
+2026-11-02 13:58:31.274 +07:00 [INF] Executed endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:31.275 +07:00 [INF] Request finished HTTP/1.1 GET http://localhost:5246/api/csrf - 200 null application/json; charset=utf-8 16.6184ms
+2026-11-02 13:58:31.367 +07:00 [INF] Request starting HTTP/1.1 POST http://localhost:5246/api/auth/login - application/json 68
+2026-11-02 13:58:31.373 +07:00 [INF] Request finished HTTP/1.1 POST http://localhost:5246/api/auth/login - 403 null application/json; charset=utf-8 5.7026ms
+2026-11-02 13:58:31.434 +07:00 [INF] Request starting HTTP/1.1 GET http://localhost:5246/api/csrf - null null
+2026-11-02 13:58:31.435 +07:00 [INF] Executing endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:31.435 +07:00 [INF] Route matched with {action = "GetCsrfToken", controller = "Auth"}. Executing controller action with signature Microsoft.AspNetCore.Mvc.IActionResult GetCsrfToken() on controller SecureNotes.Api.Controllers.AuthController (SecureNotes.Api).
+2026-11-02 13:58:31.435 +07:00 [WRN] The 'Cache-Control' and 'Pragma' headers have been overridden and set to 'no-cache, no-store' and 'no-cache' respectively to prevent caching of this response. Any response that uses antiforgery should not be cached.
+2026-11-02 13:58:31.440 +07:00 [INF] Executing OkObjectResult, writing value of type 'SecureNotes.Api.Controllers.AuthController+CsrfTokenResponse'.
+2026-11-02 13:58:31.440 +07:00 [INF] Executed action SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api) in 5.2612ms
+2026-11-02 13:58:31.440 +07:00 [INF] Executed endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:31.442 +07:00 [INF] Request finished HTTP/1.1 GET http://localhost:5246/api/csrf - 200 null application/json; charset=utf-8 8.5725ms
+2026-11-02 13:58:31.692 +07:00 [INF] Request starting HTTP/1.1 POST http://localhost:5246/api/auth/login - application/json 68
+2026-11-02 13:58:31.706 +07:00 [INF] Request finished HTTP/1.1 POST http://localhost:5246/api/auth/login - 403 null application/json; charset=utf-8 14.042ms
+2026-11-02 13:58:31.758 +07:00 [INF] Request starting HTTP/1.1 GET http://localhost:5246/api/csrf - null null
+2026-11-02 13:58:31.759 +07:00 [INF] Executing endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:31.759 +07:00 [INF] Route matched with {action = "GetCsrfToken", controller = "Auth"}. Executing controller action with signature Microsoft.AspNetCore.Mvc.IActionResult GetCsrfToken() on controller SecureNotes.Api.Controllers.AuthController (SecureNotes.Api).
+2026-11-02 13:58:31.774 +07:00 [WRN] The 'Cache-Control' and 'Pragma' headers have been overridden and set to 'no-cache, no-store' and 'no-cache' respectively to prevent caching of this response. Any response that uses antiforgery should not be cached.
+2026-11-02 13:58:31.774 +07:00 [INF] Executing OkObjectResult, writing value of type 'SecureNotes.Api.Controllers.AuthController+CsrfTokenResponse'.
+2026-11-02 13:58:31.775 +07:00 [INF] Executed action SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api) in 15.9146ms
+2026-11-02 13:58:31.780 +07:00 [INF] Executed endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:31.780 +07:00 [INF] Request finished HTTP/1.1 GET http://localhost:5246/api/csrf - 200 null application/json; charset=utf-8 21.8813ms
+2026-11-02 13:58:31.850 +07:00 [INF] Request starting HTTP/1.1 POST http://localhost:5246/api/auth/login - application/json 68
+2026-11-02 13:58:31.851 +07:00 [INF] Request finished HTTP/1.1 POST http://localhost:5246/api/auth/login - 403 null application/json; charset=utf-8 1.0271ms
+2026-11-02 13:58:31.888 +07:00 [INF] Request starting HTTP/1.1 GET http://localhost:5246/api/csrf - null null
+2026-11-02 13:58:31.889 +07:00 [INF] Executing endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:31.892 +07:00 [INF] Route matched with {action = "GetCsrfToken", controller = "Auth"}. Executing controller action with signature Microsoft.AspNetCore.Mvc.IActionResult GetCsrfToken() on controller SecureNotes.Api.Controllers.AuthController (SecureNotes.Api).
+2026-11-02 13:58:31.894 +07:00 [WRN] The 'Cache-Control' and 'Pragma' headers have been overridden and set to 'no-cache, no-store' and 'no-cache' respectively to prevent caching of this response. Any response that uses antiforgery should not be cached.
+2026-11-02 13:58:31.895 +07:00 [INF] Executing OkObjectResult, writing value of type 'SecureNotes.Api.Controllers.AuthController+CsrfTokenResponse'.
+2026-11-02 13:58:31.896 +07:00 [INF] Executed action SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api) in 3.827ms
+2026-11-02 13:58:31.896 +07:00 [INF] Executed endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:31.896 +07:00 [INF] Request finished HTTP/1.1 GET http://localhost:5246/api/csrf - 200 null application/json; charset=utf-8 8.2352ms
+2026-11-02 13:58:31.981 +07:00 [INF] Request starting HTTP/1.1 POST http://localhost:5246/api/auth/login - application/json 68
+2026-11-02 13:58:31.984 +07:00 [INF] Request finished HTTP/1.1 POST http://localhost:5246/api/auth/login - 403 null application/json; charset=utf-8 2.8252ms
+2026-11-02 13:58:32.065 +07:00 [INF] Request starting HTTP/1.1 GET http://localhost:5246/api/csrf - null null
+2026-11-02 13:58:32.066 +07:00 [INF] Executing endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:32.073 +07:00 [INF] Route matched with {action = "GetCsrfToken", controller = "Auth"}. Executing controller action with signature Microsoft.AspNetCore.Mvc.IActionResult GetCsrfToken() on controller SecureNotes.Api.Controllers.AuthController (SecureNotes.Api).
+2026-11-02 13:58:32.073 +07:00 [WRN] The 'Cache-Control' and 'Pragma' headers have been overridden and set to 'no-cache, no-store' and 'no-cache' respectively to prevent caching of this response. Any response that uses antiforgery should not be cached.
+2026-11-02 13:58:32.073 +07:00 [INF] Executing OkObjectResult, writing value of type 'SecureNotes.Api.Controllers.AuthController+CsrfTokenResponse'.
+2026-11-02 13:58:32.074 +07:00 [INF] Executed action SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api) in 0.895ms
+2026-11-02 13:58:32.074 +07:00 [INF] Executed endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:32.074 +07:00 [INF] Request finished HTTP/1.1 GET http://localhost:5246/api/csrf - 200 null application/json; charset=utf-8 8.8739ms
+2026-11-02 13:58:32.182 +07:00 [INF] Request starting HTTP/1.1 POST http://localhost:5246/api/auth/login - application/json 68
+2026-11-02 13:58:32.183 +07:00 [INF] Request finished HTTP/1.1 POST http://localhost:5246/api/auth/login - 403 null application/json; charset=utf-8 1.1514ms
+2026-11-02 13:58:36.955 +07:00 [INF] Request starting HTTP/1.1 GET http://localhost:5246/api/csrf - null null
+2026-11-02 13:58:36.961 +07:00 [INF] Executing endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:36.964 +07:00 [INF] Route matched with {action = "GetCsrfToken", controller = "Auth"}. Executing controller action with signature Microsoft.AspNetCore.Mvc.IActionResult GetCsrfToken() on controller SecureNotes.Api.Controllers.AuthController (SecureNotes.Api).
+2026-11-02 13:58:36.968 +07:00 [WRN] The 'Cache-Control' and 'Pragma' headers have been overridden and set to 'no-cache, no-store' and 'no-cache' respectively to prevent caching of this response. Any response that uses antiforgery should not be cached.
+2026-11-02 13:58:36.973 +07:00 [INF] Executing OkObjectResult, writing value of type 'SecureNotes.Api.Controllers.AuthController+CsrfTokenResponse'.
+2026-11-02 13:58:36.973 +07:00 [INF] Executed action SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api) in 5.8399ms
+2026-11-02 13:58:36.977 +07:00 [INF] Executed endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:36.981 +07:00 [INF] Request finished HTTP/1.1 GET http://localhost:5246/api/csrf - 200 null application/json; charset=utf-8 24.2716ms
+2026-11-02 13:58:37.080 +07:00 [INF] Request starting HTTP/1.1 POST http://localhost:5246/api/auth/register - application/json 72
+2026-11-02 13:58:37.089 +07:00 [INF] Executing endpoint 'SecureNotes.Api.Controllers.AuthController.Register (SecureNotes.Api)'
+2026-11-02 13:58:37.125 +07:00 [INF] Route matched with {action = "Register", controller = "Auth"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] Register(RegisterRequest, System.Threading.CancellationToken) on controller SecureNotes.Api.Controllers.AuthController (SecureNotes.Api).
+2026-11-02 13:58:37.748 +07:00 [INF] AuthenticationScheme: Cookies signed in.
+2026-11-02 13:58:37.774 +07:00 [INF] Executing CreatedResult, writing value of type 'SecureNotes.Api.Controllers.AuthController+AccountResponse'.
+2026-11-02 13:58:37.829 +07:00 [INF] Executed action SecureNotes.Api.Controllers.AuthController.Register (SecureNotes.Api) in 703.4466ms
+2026-11-02 13:58:37.832 +07:00 [INF] Executed endpoint 'SecureNotes.Api.Controllers.AuthController.Register (SecureNotes.Api)'
+2026-11-02 13:58:37.839 +07:00 [INF] Request finished HTTP/1.1 POST http://localhost:5246/api/auth/register - 201 null application/json; charset=utf-8 759.8307ms
+2026-11-02 13:58:37.888 +07:00 [INF] Request starting HTTP/1.1 GET http://localhost:5246/api/csrf - null null
+2026-11-02 13:58:37.965 +07:00 [INF] Executing endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:37.967 +07:00 [INF] Route matched with {action = "GetCsrfToken", controller = "Auth"}. Executing controller action with signature Microsoft.AspNetCore.Mvc.IActionResult GetCsrfToken() on controller SecureNotes.Api.Controllers.AuthController (SecureNotes.Api).
+2026-11-02 13:58:37.978 +07:00 [WRN] The 'Cache-Control' and 'Pragma' headers have been overridden and set to 'no-cache, no-store' and 'no-cache' respectively to prevent caching of this response. Any response that uses antiforgery should not be cached.
+2026-11-02 13:58:37.979 +07:00 [INF] Executing OkObjectResult, writing value of type 'SecureNotes.Api.Controllers.AuthController+CsrfTokenResponse'.
+2026-11-02 13:58:37.982 +07:00 [INF] Executed action SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api) in 11.7375ms
+2026-11-02 13:58:37.987 +07:00 [INF] Executed endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:37.988 +07:00 [INF] Request finished HTTP/1.1 GET http://localhost:5246/api/csrf - 200 null application/json; charset=utf-8 99.6706ms
+2026-11-02 13:58:38.048 +07:00 [INF] Request starting HTTP/1.1 POST http://localhost:5246/api/auth/login - application/json 68
+2026-11-02 13:58:38.061 +07:00 [INF] Executing endpoint 'SecureNotes.Api.Controllers.AuthController.Login (SecureNotes.Api)'
+2026-11-02 13:58:38.083 +07:00 [INF] Route matched with {action = "Login", controller = "Auth"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] Login(LoginRequest, System.Threading.CancellationToken) on controller SecureNotes.Api.Controllers.AuthController (SecureNotes.Api).
+2026-11-02 13:58:38.988 +07:00 [INF] Executing UnauthorizedObjectResult, writing value of type 'SecureNotes.Api.Controllers.AuthController+ErrorResponse'.
+2026-11-02 13:58:38.993 +07:00 [INF] Executed action SecureNotes.Api.Controllers.AuthController.Login (SecureNotes.Api) in 910.0516ms
+2026-11-02 13:58:38.994 +07:00 [INF] Executed endpoint 'SecureNotes.Api.Controllers.AuthController.Login (SecureNotes.Api)'
+2026-11-02 13:58:38.994 +07:00 [INF] Request finished HTTP/1.1 POST http://localhost:5246/api/auth/login - 401 null application/json; charset=utf-8 946.026ms
+2026-11-02 13:58:39.026 +07:00 [INF] Request starting HTTP/1.1 GET http://localhost:5246/api/csrf - null null
+2026-11-02 13:58:39.035 +07:00 [INF] Executing endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:39.036 +07:00 [INF] Route matched with {action = "GetCsrfToken", controller = "Auth"}. Executing controller action with signature Microsoft.AspNetCore.Mvc.IActionResult GetCsrfToken() on controller SecureNotes.Api.Controllers.AuthController (SecureNotes.Api).
+2026-11-02 13:58:39.039 +07:00 [WRN] The 'Cache-Control' and 'Pragma' headers have been overridden and set to 'no-cache, no-store' and 'no-cache' respectively to prevent caching of this response. Any response that uses antiforgery should not be cached.
+2026-11-02 13:58:39.040 +07:00 [INF] Executing OkObjectResult, writing value of type 'SecureNotes.Api.Controllers.AuthController+CsrfTokenResponse'.
+2026-11-02 13:58:39.041 +07:00 [INF] Executed action SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api) in 2.4512ms
+2026-11-02 13:58:39.041 +07:00 [INF] Executed endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:39.041 +07:00 [INF] Request finished HTTP/1.1 GET http://localhost:5246/api/csrf - 200 null application/json; charset=utf-8 15.3381ms
+2026-11-02 13:58:39.086 +07:00 [INF] Request starting HTTP/1.1 POST http://localhost:5246/api/auth/login - application/json 68
+2026-11-02 13:58:39.096 +07:00 [INF] Executing endpoint 'SecureNotes.Api.Controllers.AuthController.Login (SecureNotes.Api)'
+2026-11-02 13:58:39.097 +07:00 [INF] Route matched with {action = "Login", controller = "Auth"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] Login(LoginRequest, System.Threading.CancellationToken) on controller SecureNotes.Api.Controllers.AuthController (SecureNotes.Api).
+2026-11-02 13:58:39.620 +07:00 [INF] Executing UnauthorizedObjectResult, writing value of type 'SecureNotes.Api.Controllers.AuthController+ErrorResponse'.
+2026-11-02 13:58:39.621 +07:00 [INF] Executed action SecureNotes.Api.Controllers.AuthController.Login (SecureNotes.Api) in 523.7468ms
+2026-11-02 13:58:39.621 +07:00 [INF] Executed endpoint 'SecureNotes.Api.Controllers.AuthController.Login (SecureNotes.Api)'
+2026-11-02 13:58:39.622 +07:00 [INF] Request finished HTTP/1.1 POST http://localhost:5246/api/auth/login - 401 null application/json; charset=utf-8 536.2307ms
+2026-11-02 13:58:39.679 +07:00 [INF] Request starting HTTP/1.1 GET http://localhost:5246/api/csrf - null null
+2026-11-02 13:58:39.687 +07:00 [INF] Executing endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:39.689 +07:00 [INF] Route matched with {action = "GetCsrfToken", controller = "Auth"}. Executing controller action with signature Microsoft.AspNetCore.Mvc.IActionResult GetCsrfToken() on controller SecureNotes.Api.Controllers.AuthController (SecureNotes.Api).
+2026-11-02 13:58:39.698 +07:00 [WRN] The 'Cache-Control' and 'Pragma' headers have been overridden and set to 'no-cache, no-store' and 'no-cache' respectively to prevent caching of this response. Any response that uses antiforgery should not be cached.
+2026-11-02 13:58:39.706 +07:00 [INF] Executing OkObjectResult, writing value of type 'SecureNotes.Api.Controllers.AuthController+CsrfTokenResponse'.
+2026-11-02 13:58:39.709 +07:00 [INF] Executed action SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api) in 19.7938ms
+2026-11-02 13:58:39.709 +07:00 [INF] Executed endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:39.712 +07:00 [INF] Request finished HTTP/1.1 GET http://localhost:5246/api/csrf - 200 null application/json; charset=utf-8 30.3186ms
+2026-11-02 13:58:39.748 +07:00 [INF] Request starting HTTP/1.1 POST http://localhost:5246/api/auth/login - application/json 68
+2026-11-02 13:58:39.754 +07:00 [INF] Executing endpoint 'SecureNotes.Api.Controllers.AuthController.Login (SecureNotes.Api)'
+2026-11-02 13:58:39.755 +07:00 [INF] Route matched with {action = "Login", controller = "Auth"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] Login(LoginRequest, System.Threading.CancellationToken) on controller SecureNotes.Api.Controllers.AuthController (SecureNotes.Api).
+2026-11-02 13:58:40.275 +07:00 [INF] Executing UnauthorizedObjectResult, writing value of type 'SecureNotes.Api.Controllers.AuthController+ErrorResponse'.
+2026-11-02 13:58:40.277 +07:00 [INF] Executed action SecureNotes.Api.Controllers.AuthController.Login (SecureNotes.Api) in 521.5701ms
+2026-11-02 13:58:40.285 +07:00 [INF] Executed endpoint 'SecureNotes.Api.Controllers.AuthController.Login (SecureNotes.Api)'
+2026-11-02 13:58:40.285 +07:00 [INF] Request finished HTTP/1.1 POST http://localhost:5246/api/auth/login - 401 null application/json; charset=utf-8 537.0272ms
+2026-11-02 13:58:40.316 +07:00 [INF] Request starting HTTP/1.1 GET http://localhost:5246/api/csrf - null null
+2026-11-02 13:58:40.332 +07:00 [INF] Executing endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:40.332 +07:00 [INF] Route matched with {action = "GetCsrfToken", controller = "Auth"}. Executing controller action with signature Microsoft.AspNetCore.Mvc.IActionResult GetCsrfToken() on controller SecureNotes.Api.Controllers.AuthController (SecureNotes.Api).
+2026-11-02 13:58:40.334 +07:00 [WRN] The 'Cache-Control' and 'Pragma' headers have been overridden and set to 'no-cache, no-store' and 'no-cache' respectively to prevent caching of this response. Any response that uses antiforgery should not be cached.
+2026-11-02 13:58:40.338 +07:00 [INF] Executing OkObjectResult, writing value of type 'SecureNotes.Api.Controllers.AuthController+CsrfTokenResponse'.
+2026-11-02 13:58:40.340 +07:00 [INF] Executed action SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api) in 6.6029ms
+2026-11-02 13:58:40.342 +07:00 [INF] Executed endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:40.343 +07:00 [INF] Request finished HTTP/1.1 GET http://localhost:5246/api/csrf - 200 null application/json; charset=utf-8 26.7889ms
+2026-11-02 13:58:40.382 +07:00 [INF] Request starting HTTP/1.1 POST http://localhost:5246/api/auth/login - application/json 68
+2026-11-02 13:58:40.403 +07:00 [INF] Executing endpoint 'SecureNotes.Api.Controllers.AuthController.Login (SecureNotes.Api)'
+2026-11-02 13:58:40.406 +07:00 [INF] Route matched with {action = "Login", controller = "Auth"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] Login(LoginRequest, System.Threading.CancellationToken) on controller SecureNotes.Api.Controllers.AuthController (SecureNotes.Api).
+2026-11-02 13:58:41.004 +07:00 [INF] Executing UnauthorizedObjectResult, writing value of type 'SecureNotes.Api.Controllers.AuthController+ErrorResponse'.
+2026-11-02 13:58:41.012 +07:00 [INF] Executed action SecureNotes.Api.Controllers.AuthController.Login (SecureNotes.Api) in 605.3906ms
+2026-11-02 13:58:41.016 +07:00 [INF] Executed endpoint 'SecureNotes.Api.Controllers.AuthController.Login (SecureNotes.Api)'
+2026-11-02 13:58:41.016 +07:00 [INF] Request finished HTTP/1.1 POST http://localhost:5246/api/auth/login - 401 null application/json; charset=utf-8 634.238ms
+2026-11-02 13:58:41.042 +07:00 [INF] Request starting HTTP/1.1 GET http://localhost:5246/api/csrf - null null
+2026-11-02 13:58:41.049 +07:00 [INF] Executing endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:41.049 +07:00 [INF] Route matched with {action = "GetCsrfToken", controller = "Auth"}. Executing controller action with signature Microsoft.AspNetCore.Mvc.IActionResult GetCsrfToken() on controller SecureNotes.Api.Controllers.AuthController (SecureNotes.Api).
+2026-11-02 13:58:41.051 +07:00 [WRN] The 'Cache-Control' and 'Pragma' headers have been overridden and set to 'no-cache, no-store' and 'no-cache' respectively to prevent caching of this response. Any response that uses antiforgery should not be cached.
+2026-11-02 13:58:41.053 +07:00 [INF] Executing OkObjectResult, writing value of type 'SecureNotes.Api.Controllers.AuthController+CsrfTokenResponse'.
+2026-11-02 13:58:41.054 +07:00 [INF] Executed action SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api) in 4.6887ms
+2026-11-02 13:58:41.054 +07:00 [INF] Executed endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:41.054 +07:00 [INF] Request finished HTTP/1.1 GET http://localhost:5246/api/csrf - 200 null application/json; charset=utf-8 12.1964ms
+2026-11-02 13:58:41.158 +07:00 [INF] Request starting HTTP/1.1 POST http://localhost:5246/api/auth/login - application/json 68
+2026-11-02 13:58:41.165 +07:00 [INF] Executing endpoint 'SecureNotes.Api.Controllers.AuthController.Login (SecureNotes.Api)'
+2026-11-02 13:58:41.167 +07:00 [INF] Route matched with {action = "Login", controller = "Auth"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] Login(LoginRequest, System.Threading.CancellationToken) on controller SecureNotes.Api.Controllers.AuthController (SecureNotes.Api).
+2026-11-02 13:58:42.143 +07:00 [INF] Executing UnauthorizedObjectResult, writing value of type 'SecureNotes.Api.Controllers.AuthController+ErrorResponse'.
+2026-11-02 13:58:42.146 +07:00 [INF] Executed action SecureNotes.Api.Controllers.AuthController.Login (SecureNotes.Api) in 977.5032ms
+2026-11-02 13:58:42.146 +07:00 [INF] Executed endpoint 'SecureNotes.Api.Controllers.AuthController.Login (SecureNotes.Api)'
+2026-11-02 13:58:42.146 +07:00 [INF] Request finished HTTP/1.1 POST http://localhost:5246/api/auth/login - 401 null application/json; charset=utf-8 988.1919ms
+2026-11-02 13:58:42.165 +07:00 [INF] Request starting HTTP/1.1 GET http://localhost:5246/api/csrf - null null
+2026-11-02 13:58:42.177 +07:00 [INF] Executing endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:42.177 +07:00 [INF] Route matched with {action = "GetCsrfToken", controller = "Auth"}. Executing controller action with signature Microsoft.AspNetCore.Mvc.IActionResult GetCsrfToken() on controller SecureNotes.Api.Controllers.AuthController (SecureNotes.Api).
+2026-11-02 13:58:42.178 +07:00 [WRN] The 'Cache-Control' and 'Pragma' headers have been overridden and set to 'no-cache, no-store' and 'no-cache' respectively to prevent caching of this response. Any response that uses antiforgery should not be cached.
+2026-11-02 13:58:42.178 +07:00 [INF] Executing OkObjectResult, writing value of type 'SecureNotes.Api.Controllers.AuthController+CsrfTokenResponse'.
+2026-11-02 13:58:42.178 +07:00 [INF] Executed action SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api) in 0.8002ms
+2026-11-02 13:58:42.178 +07:00 [INF] Executed endpoint 'SecureNotes.Api.Controllers.AuthController.GetCsrfToken (SecureNotes.Api)'
+2026-11-02 13:58:42.181 +07:00 [INF] Request finished HTTP/1.1 GET http://localhost:5246/api/csrf - 200 null application/json; charset=utf-8 16.417ms
+2026-11-02 13:58:42.243 +07:00 [INF] Request starting HTTP/1.1 POST http://localhost:5246/api/auth/login - application/json 68
+2026-11-02 13:58:42.252 +07:00 [INF] Executing endpoint 'SecureNotes.Api.Controllers.AuthController.Login (SecureNotes.Api)'
+2026-11-02 13:58:42.252 +07:00 [INF] Route matched with {action = "Login", controller = "Auth"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] Login(LoginRequest, System.Threading.CancellationToken) on controller SecureNotes.Api.Controllers.AuthController (SecureNotes.Api).
+2026-11-02 13:58:42.798 +07:00 [INF] Executing UnauthorizedObjectResult, writing value of type 'SecureNotes.Api.Controllers.AuthController+ErrorResponse'.
+2026-11-02 13:58:42.799 +07:00 [INF] Executed action SecureNotes.Api.Controllers.AuthController.Login (SecureNotes.Api) in 546.9631ms
+2026-11-02 13:58:42.803 +07:00 [INF] Executed endpoint 'SecureNotes.Api.Controllers.AuthController.Login (SecureNotes.Api)'
+2026-11-02 13:58:42.806 +07:00 [INF] Request finished HTTP/1.1 POST http://localhost:5246/api/auth/login - 401 null application/json; charset=utf-8 562.8618ms
+2026-11-02 13:58:49.266 +07:00 [INF] Request starting HTTP/1.1 GET http://localhost:5246/api/auth/google?returnUrl=%2F - null null
+2026-11-02 13:58:49.267 +07:00 [INF] Executing endpoint 'SecureNotes.Api.Controllers.GoogleAuthController.Login (SecureNotes.Api)'
+2026-11-02 13:58:49.287 +07:00 [INF] Route matched with {action = "Login", controller = "GoogleAuth"}. Executing controller action with signature Microsoft.AspNetCore.Mvc.IActionResult Login(System.String) on controller SecureNotes.Api.Controllers.GoogleAuthController (SecureNotes.Api).
+2026-11-02 13:58:49.320 +07:00 [INF] Executing RedirectResult, redirecting to /?authError=google_unavailable.
+2026-11-02 13:58:49.326 +07:00 [INF] Executed action SecureNotes.Api.Controllers.GoogleAuthController.Login (SecureNotes.Api) in 37.2524ms
+2026-11-02 13:58:49.326 +07:00 [INF] Executed endpoint 'SecureNotes.Api.Controllers.GoogleAuthController.Login (SecureNotes.Api)'
+2026-11-02 13:58:49.326 +07:00 [INF] Request finished HTTP/1.1 GET http://localhost:5246/api/auth/google?returnUrl=%2F - 302 0 null 60.2635ms
+2026-11-02 13:58:59.099 +07:00 [INF] Application is shutting down...

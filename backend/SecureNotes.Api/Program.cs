@@ -1,5 +1,7 @@
 using System.Security.Claims;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Data.SqlClient;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -24,6 +26,28 @@ var maxAttachmentRequestBodySize = checked(maxAttachmentFileBytes + 1_048_576);
 const int sessionIdleTimeoutMinutes = 20;
 const int absoluteSessionTimeoutHours = 8;
 var allowedOrigins = builder.Configuration.GetSection("Security:AllowedOrigins").Get<string[]>() ?? [];
+var dataProtectionKeyPath = builder.Configuration["DataProtection:KeyPath"];
+if (!string.IsNullOrWhiteSpace(dataProtectionKeyPath))
+{
+    Directory.CreateDirectory(dataProtectionKeyPath);
+    builder.Services.AddDataProtection()
+        .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeyPath));
+}
+
+if (!isDevelopment)
+{
+    var connectionString = builder.Configuration.GetConnectionString("SecureNotes")
+        ?? throw new InvalidOperationException(
+            "The 'ConnectionStrings:SecureNotes' setting is required in non-development environments.");
+    var sqlConnection = new SqlConnectionStringBuilder(connectionString);
+    if (sqlConnection.Encrypt != SqlConnectionEncryptOption.Mandatory
+        || sqlConnection.TrustServerCertificate)
+    {
+        throw new InvalidOperationException(
+            "Non-development SQL connections must use Encrypt=True and TrustServerCertificate=False.");
+    }
+}
+
 var logPath = builder.Configuration["Serilog:FilePath"] ?? "logs/securenotes-.log";
 Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(logPath))!);
 builder.Host.UseSerilog((context, logger) => logger
@@ -251,6 +275,16 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
+    options.AddPolicy("auth-google", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,
+                Window = TimeSpan.FromMinutes(5),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
     options.AddPolicy("attachment-upload", context =>
         RateLimitPartition.GetFixedWindowLimiter(
             context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
@@ -301,6 +335,10 @@ builder.Services.AddAuthorization(options =>
             .RequireRole("admin")
             .RequireClaim("two_factor_verified", "true"));
 });
+builder.Services.AddHsts(options =>
+{
+    options.MaxAge = TimeSpan.FromDays(365);
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -341,11 +379,6 @@ app.Use(async (context, next) =>
         context.Response.Headers["Pragma"] = "no-cache";
     }
 
-    if (!isDevelopment)
-    {
-        context.Response.Headers["Strict-Transport-Security"] = "max-age=31536000";
-    }
-
     var maxBodySizeFeature = context.Features.Get<IHttpMaxRequestBodySizeFeature>();
     if (maxBodySizeFeature is { IsReadOnly: false })
     {
@@ -363,6 +396,10 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+}
+else
+{
+    app.UseHsts();
 }
 
 if (builder.Configuration.GetValue("HttpsRedirection:Enabled", true))

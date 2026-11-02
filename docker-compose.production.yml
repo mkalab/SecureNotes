@@ -1,0 +1,73 @@
+name: securenotes-production
+
+services:
+  db:
+    ports: !override []
+    volumes:
+      - ${SECURENOTES_SQL_TLS_CERT_PATH:?Set the SQL Server TLS certificate path}:/run/secrets/mssql.pem:ro
+      - ${SECURENOTES_SQL_TLS_KEY_PATH:?Set the SQL Server TLS private key path}:/run/secrets/mssql.key:ro
+      - ./deploy/sql/mssql.conf:/var/opt/mssql/mssql.conf:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+    networks:
+      default:
+        aliases:
+          - ${SECURENOTES_DB_HOST:?Set the SQL Server TLS DNS name}
+
+  api:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      HttpsRedirection__Enabled: "false"
+      DataProtection__KeyPath: /var/lib/securenotes/keys
+      ConnectionStrings__SecureNotes: "Server=${SECURENOTES_DB_HOST:?Set the SQL Server TLS DNS name},1433;Database=SecureNotes;User Id=notes_app;Password=${NOTES_APP_PASSWORD:?Set NOTES_APP_PASSWORD};Encrypt=True;TrustServerCertificate=False;Connect Timeout=5"
+      ForwardedHeaders__KnownProxies: ${SECURENOTES_PROXY_IP:?Set the reverse proxy IP}
+      Security__AllowedOrigins: ${SECURENOTES_PRODUCTION_ORIGIN:?Set the public HTTPS origin}
+      Authentication__Google__FrontendOrigin: ${SECURENOTES_PRODUCTION_ORIGIN:?Set the public HTTPS origin}
+    volumes:
+      - api-keys:/var/lib/securenotes/keys
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.production
+    environment: !override {}
+    ports: !override
+      - "${SECURENOTES_HTTP_PORT:-80}:8080"
+      - "${SECURENOTES_HTTPS_PORT:-443}:8443"
+    volumes:
+      - ${SECURENOTES_WEB_TLS_CERT_PATH:?Set the web TLS certificate path}:/etc/nginx/tls/fullchain.pem:ro
+      - ${SECURENOTES_WEB_TLS_KEY_PATH:?Set the web TLS private key path}:/etc/nginx/tls/privkey.pem:ro
+    networks:
+      default:
+        ipv4_address: ${SECURENOTES_PROXY_IP:?Set the reverse proxy IP}
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+      - /var/cache/nginx:rw,noexec,nosuid,size=16m
+      - /var/run:rw,noexec,nosuid,size=1m
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+networks:
+  default:
+    name: securenotes-production
+    ipam:
+      config:
+        - subnet: ${SECURENOTES_PROD_SUBNET:?Set a private production subnet}
+
+volumes:
+  api-keys:

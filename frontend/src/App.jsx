@@ -38,7 +38,7 @@ async function request(path, options = {}) {
   return data
 }
 
-function AttachmentPanel({ noteId, onError }) {
+function AttachmentPanel({ noteId, onError, account, adminMode, setAdminMode }) {
   const [attachments, setAttachments] = useState([])
   const [busy, setBusy] = useState(false)
   const [panelError, setPanelError] = useState('')
@@ -1100,7 +1100,13 @@ function WorkspaceApp() {
                 </button>
                 {expandedNote === note.noteId && (
                   <div className="items-panel">
-                    <AttachmentPanel noteId={note.noteId} onError={setError} />
+                    <AttachmentPanel
+                      noteId={note.noteId}
+                      onError={setError}
+                      account={account}
+                      adminMode={adminMode}
+                      setAdminMode={setAdminMode}
+                    />
                     <SharePanel noteId={note.noteId} onError={setError} />
                     {notes.filter((child) => child.parentId === note.noteId).map((child) => (
                       <div className="subnote-row" key={child.noteId}>

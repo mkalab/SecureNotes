@@ -256,7 +256,36 @@ npm run dev
 
 Sau khi ứng dụng chạy, mở giao diện và đăng ký bằng email cùng mật khẩu (tối thiểu 12 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt), rồi tạo ghi chú và danh mục. Mật khẩu được băm PBKDF2-HMAC-SHA256. Phiên đăng nhập dùng cookie HttpOnly, SameSite=Strict, session ID ngẫu nhiên 256 bit lưu phía server dưới dạng hash; mỗi tài khoản có tối đa một phiên với timeout idle 20 phút và tuyệt đối 8 giờ. Các thao tác thay đổi dữ liệu cần `X-CSRF-TOKEN` và Origin hợp lệ. Cấu hình Compose chạy ở `Development`, không dùng để triển khai production.
 
-API giới hạn body thông thường ở 1 MiB; upload tệp được giới hạn riêng theo cấu hình. Rate limit đăng nhập/đăng ký và upload; lỗi đăng nhập dùng thông báo chung. Security headers được thêm cho API và frontend dev/preview. Riêng Vite dev server cho phép inline script để React Fast Refresh hoạt động; frontend preview giữ CSP chặt hơn (`script-src 'self'`). Mọi API response không được cache. Cấu hình production phải đặt `Security:AllowedOrigins` chính xác cho các origin frontend công khai, dùng HTTPS và không cho phép origin wildcard.
+API giới hạn body thông thường ở 1 MiB; upload tệp được giới hạn riêng theo cấu hình. Rate limit đăng nhập/đăng ký và upload; lỗi đăng nhập dùng thông báo chung. Security headers được thêm cho API và frontend dev/preview. Riêng Vite dev server cho phép inline script để React Fast Refresh hoạt động; frontend preview giữ CSP chặt hơn (`script-src 'self'`). Mọi API response không được cache. Buổi kiểm thử của nhóm chạy trên máy demo qua localhost, không cần production/cloud; origin mặc định trong `.env.example` phù hợp cho cách chạy này. Nếu triển khai public trong tương lai, phải dùng HTTPS và cấu hình `Security:AllowedOrigins` chính xác, không dùng wildcard.
+
+### P9 — Hardening cho máy demo; cấu hình production là tùy chọn
+
+Cho demo, chạy stack local bằng `docker compose up --build`. SQL Server chỉ bind `127.0.0.1:1433`, API chỉ expose trong Docker network, frontend bind `127.0.0.1:5173`; do đó các dịch vụ không mở cổng ra mạng LAN/Internet. Kết nối API→SQL bật `Encrypt=True`; `TrustServerCertificate=True` chỉ dùng cho môi trường demo local. Swagger chỉ được bật trong `Development`; API chạy production sẽ kiểm tra TLS xác thực chứng chỉ. Không cần domain, cert CA, firewall cloud, public TLS hay production deployment để giảng viên kiểm thử trên máy nhóm.
+
+Cấu hình production bên dưới được giữ lại cho triển khai trong tương lai, nhưng **không bắt buộc và không nằm trong tiêu chí hoàn thành buổi demo**. Cấu hình này dùng Nginx unprivileged để phục vụ React đã build, kết thúc TLS 1.2/1.3, chuyển HTTP sang HTTPS, chặn method ngoài GET/POST và chỉ publish cổng web. API chạy `Production`, Swagger tắt, filesystem container chỉ đọc (ngoại trừ volume dữ liệu), SQL Server không publish cổng 1433 và bắt buộc TLS có xác thực chứng chỉ.
+
+Trước khi khởi chạy production:
+
+1. Tạo `.env` như hướng dẫn local, sau đó đặt riêng các biến `SECURENOTES_PROD_SUBNET`, `SECURENOTES_PROXY_IP` và `SECURENOTES_DB_HOST`. Chọn subnet riêng không trùng mạng hiện có; IP proxy phải nằm trong subnet đó. `SECURENOTES_DB_HOST` phải là DNS name có trong SAN của chứng chỉ SQL Server.
+2. Cấp chứng chỉ SQL Server và chứng chỉ web từ CA được API/trình duyệt tin cậy. Chứng chỉ SQL phải là PEM có EKU server authentication; khóa riêng SQL cần đọc được bởi user SQL Server trong container. Khóa web phải đọc được bởi UID/GID 101 của Nginx unprivileged. Đặt đường dẫn tuyệt đối của cert/key vào `SECURENOTES_SQL_TLS_CERT_PATH`, `SECURENOTES_SQL_TLS_KEY_PATH`, `SECURENOTES_WEB_TLS_CERT_PATH` và `SECURENOTES_WEB_TLS_KEY_PATH`. Giữ private keys ngoài Git, giới hạn quyền đọc và cấu hình gia hạn/restart dịch vụ khi xoay chứng chỉ.
+3. Đặt `SECURENOTES_PRODUCTION_ORIGIN=https://<domain>` và Google Client ID/Secret/redirect URI theo domain HTTPS thật. Biến origin này được dùng cho kiểm tra Origin/CSRF và luồng Google. Mở firewall host/cloud chỉ cho 80/443 (và SSH theo chính sách quản trị); subnet Compose là mạng nội bộ. Không expose API hoặc SQL Server.
+
+Kiểm tra cấu hình và chạy:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.production.yml config --quiet
+docker compose -f docker-compose.yml -f docker-compose.production.yml up --build -d
+```
+
+Compose production dùng project/volume riêng `securenotes-production`; không dùng chung DB local. API xác thực rằng SQL connection string có `Encrypt=True;TrustServerCertificate=False` và từ chối khởi động nếu cấu hình không an toàn. Data Protection keys được lưu trong volume riêng để cookie không mất hiệu lực sau khi API restart. API, SQL Server và Nginx có restart policy; log Docker được giới hạn theo dung lượng, còn Serilog giữ tối đa 14 file ngày.
+
+Có thể bật Extended Events cho đăng nhập SQL thất bại và DDL bằng login `sysadmin` riêng đã được provision trên SQL Server (không dùng `notes_app`; `sa` bị vô hiệu hóa theo hardening):
+
+```bash
+COMPOSE_FILE=docker-compose.yml:docker-compose.production.yml ./scripts/enable-sql-xevents.sh
+```
+
+Script tạo session tự khởi động cùng SQL Server, ghi tối đa bốn file 25 MiB trong volume dữ liệu SQL. Đặt `SECURENOTES_SQL_ADMIN_USER` và `SECURENOTES_SQL_ADMIN_PASSWORD` trong `.env`; script sẽ báo lỗi rõ nếu thiếu login quản trị sẵn có. Kiểm tra cấu hình TLS của web bằng `openssl s_client -connect <domain>:443 -tls1_2` và `-tls1_3`; kiểm tra redirect bằng `curl -I http://<domain>`. Trước khi tuyên bố triển khai production hoàn tất, vẫn cần kiểm tra firewall/port scan từ một máy bên ngoài, quyền file certificate trên host, renew/restore chứng chỉ và bắt gói tin API↔DB trên hạ tầng thực tế. TDE, backup mã hóa, hardening host/SSH và mount upload với `noexec` chưa được cấu hình tự động.
 
 ### Tệp đính kèm ghi chú (P6)
 

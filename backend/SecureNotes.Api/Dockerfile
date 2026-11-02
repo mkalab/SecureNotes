@@ -9,12 +9,16 @@ COPY backend/SecureNotes.Api/ backend/SecureNotes.Api/
 RUN dotnet publish backend/SecureNotes.Api/SecureNotes.Api.csproj \
     --configuration Release \
     --no-restore \
-    --output /app/publish
+    --output /app/publish \
+    && if find /app/publish -type f \( -name '*.bak' -o -name '*.old' -o -name '*.map' \) -print -quit | grep -q .; then \
+        echo "Production API contains a source map or backup file." >&2; exit 1; \
+    fi
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 COPY --from=build /app/publish .
 RUN mkdir -p /var/lib/securenotes/attachments /var/lib/securenotes/logs \
+        /var/lib/securenotes/keys \
     && chown -R $APP_UID:$APP_UID /var/lib/securenotes
 USER $APP_UID
 EXPOSE 8080

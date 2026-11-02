@@ -1,4 +1,4 @@
-# ROADMAP — SecureNotes: Website quản lý ghi chú an toàn (v4)
+# ROADMAP — SecureNotes: Website quản lý ghi chú an toàn (v5)
 
 > Đồ án môn An toàn website & CSDL, nhóm 5 người. "SecureNotes" là tên tạm. Thời gian là **ước lượng thô theo người-ngày**; co giãn theo hạn nộp. Mức ưu tiên: **\[MUST\]** bắt buộc, là phần lấy điểm chính hoặc phần giảng viên thử đầu tiên · **\[SHOULD\]** nên có · **\[COULD\]** làm nếu còn thời gian. Tài liệu đi kèm: `SECURITY_SCORECARD.md` (bảng tự chấm từng mục của đề). **Bắt đầu từ đâu:** đọc mục "Thứ tự thực hiện và phụ thuộc" ở đầu mục 5, rồi bảng "5 ngày đầu" trong đó.
 
@@ -8,7 +8,7 @@
 
 ### 1.1 Mục tiêu và bối cảnh chấm điểm
 
-Website ghi chú dạng sticky note (lấy cảm hứng từ extension FlexiNote), dữ liệu lưu trên máy chủ, truy cập từ nhiều thiết bị. Trọng tâm là **bảo mật hệ thống**.
+Website ghi chú dạng sticky note (lấy cảm hứng từ extension FlexiNote), dữ liệu lưu trên máy chủ, hướng tới truy cập từ nhiều thiết bị khi triển khai. Phạm vi demo/kiểm thử hiện tại là chạy local trên máy nhóm. Trọng tâm là **bảo mật hệ thống**.
 
 Khi báo cáo, giảng viên sẽ **kiểm thử xâm nhập** website, nhiều khả năng theo hình thức **white-box** (đọc được mã nguồn), không công bố trước loại tấn công, và chấm theo **số lỗi bảo mật mà nhóm chặn được** (tối thiểu như đề, chặn càng nhiều điểm càng cao). Hệ quả cho cách làm:
 
@@ -27,7 +27,7 @@ Khi báo cáo, giảng viên sẽ **kiểm thử xâm nhập** website, nhiều 
 | Truy cập dữ liệu | `Microsoft.Data.SqlClient` (+ Dapper tùy chọn), gọi **Stored Procedure** | Không dùng chuỗi SQL nối tay |
 | Đăng nhập Google | Handler OpenID Connect của ASP.NET Core | Authorization Code \+ PKCE |
 | Mật mã | `System.Security.Cryptography`: PBKDF2-HMAC-SHA256, AES-256-GCM | Có sẵn trong .NET |
-| Triển khai | Docker Compose \+ Nginx/Caddy (HTTPS) | **Một bộ compose duy nhất** chạy được cả trên laptop và trên VPS |
+| Chạy/demo | Docker Compose trên máy nhóm | Môi trường kiểm thử chính là máy local; cấu hình production riêng là tùy chọn, không phải điều kiện nộp/demo |
 
 ### 1.3 Chức năng
 
@@ -47,7 +47,7 @@ Khi báo cáo, giảng viên sẽ **kiểm thử xâm nhập** website, nhiều 
 | D2 | Mọi thao tác dữ liệu đi qua **Stored Procedure**; tài khoản app chỉ có `EXECUTE` | Mô hình Tầng 2 của giáo trình; xử lý cùng lúc lỗ hổng CSDL \#1, \#3, \#4 |
 | D3 | Mã hóa nội dung ghi chú bằng **AES-256-GCM** kiểu envelope: khóa chủ (KEK) ngoài DB, mỗi user một khóa dữ liệu (DEK) | Lộ DB hoặc backup vẫn không đọc được nội dung |
 | D4 | Tìm kiếm thực hiện ở tầng ứng dụng sau khi giải mã dữ liệu của chính user | Dữ liệu đã mã hóa thì SQL không tìm được; quy mô cá nhân đủ nhỏ |
-| D5 | Một origin: ASP.NET phục vụ cả bản build React, đặt sau reverse proxy | Không cần CORS, dùng được `SameSite=Strict` |
+| D5 | Production có thể phục vụ React và API cùng origin; demo local dùng Vite proxy | Không cần CORS cross-origin, dùng được `SameSite=Strict` |
 | D6 | Thao tác thay đổi dữ liệu chỉ nhận `POST` | Máy chủ chặn `PUT/DELETE/TRACE/MOVE` theo giáo trình |
 | D7 | Hai phiên bản: **baseline dễ tổn thương** (git tag, chỉ chạy local) và bản đã gia cố | Demo "trước/sau" thuyết phục |
 | D8 | Băm mật khẩu bằng **PBKDF2-HMAC-SHA256** \+ salt riêng, số vòng theo khuyến nghị OWASP hiện hành | Thuộc họ SHA-2 như giáo trình nhưng chậm, chống brute-force tốt hơn |
@@ -144,7 +144,7 @@ Mục tiêu: **phủ đủ và chắc cả ba phần**, vượt xa mức tối t
 | 4 | Lạm dụng đặc quyền truy cập trực tiếp | `DENY SELECT/INSERT/UPDATE/DELETE` trên bảng gốc; admin không có endpoint đọc nội dung | P1, P8 | MUST |
 | 5 | Mật khẩu CSDL yếu/mặc định | ≥ 10 ký tự đủ 4 loại; bật `CHECK_POLICY`/`CHECK_EXPIRATION` nếu nền tảng hỗ trợ | P1 | MUST |
 | 6 | Lộ chuỗi kết nối | Biến môi trường/Docker secrets hoặc Data Protection API; không commit vào git | P4 | MUST |
-| 7 | Dữ liệu nhạy cảm dạng rõ | Băm mật khẩu, AES-256-GCM cho ghi chú/TOTP secret (TDE: COULD) | P3, P4, P9 | MUST |
+| 7 | Dữ liệu nhạy cảm dạng rõ | Băm mật khẩu, AES-256-GCM cho ghi chú/TOTP secret (TDE: COULD) | P3, P4 | MUST |
 | 8 | Truyền CSDL không mã hóa | TLS giữa API và SQL Server (`Encrypt=True`, `TrustServerCertificate=False`) | P9 | MUST |
 | 9 | Lỗi cấu hình HQTCSDL | Cập nhật bản vá, tắt tính năng thừa, chỉ lắng nghe mạng nội bộ, quyền thư mục dữ liệu | P9 | MUST |
 | 10 | Thiếu audit | Bảng `audit_logs` (MUST) \+ SQL Server Audit/Extended Events (SHOULD) | P8, P9 | MUST |
@@ -157,35 +157,23 @@ Mục tiêu: **phủ đủ và chắc cả ba phần**, vượt xa mức tối t
 
  Trình duyệt (React \+ CSS thuần) ──────────────▶ Google (đăng nhập OIDC, chuyển hướng toàn trang)
 
-        │  HTTPS (TLS 1.2/1.3)
+        │  HTTP qua loopback (demo local; không public)
 
         ▼
 
- Reverse proxy (Nginx/Caddy)  ── chặn PUT/DELETE/TRACE, ẩn phiên bản, chỉ mở 80/443
+ Vite dev server (:5173) ── proxy `/api` ──▶ ASP.NET Core API (Docker :8080, không publish host port)
 
-        │  localhost
-
-        ▼
-
- ASP.NET Core API (Kestrel)   ── phục vụ cả bản build React (cùng origin)
-
-   │  Middleware: security headers → rate limit → session → CSRF/Origin → phản ứng bất thường
-
-   │  Services:  Password, Crypto, Totp, Session, GoogleLogin, Share, FileStorage, Audit
+                                      │ Middleware: security headers → rate limit → session → CSRF/Origin
+                                      │ Services: Password, Crypto, Totp, Session, Google, Share, FileStorage, Audit
+                                      ├── Docker network + SQL transport encryption ──▶ SQL Server (:1433)
+                                      │      schema app (Stored Procedure) ← notes_app chỉ EXECUTE
+                                      │      schema dbo (bảng dữ liệu) ← DENY truy cập trực tiếp
 
    │
 
-   ├── TLS ──▶ SQL Server (mạng nội bộ, không publish cổng 1433\)
+   └── Kho tệp đính kèm (ngoài web root; nội dung được mã hóa)
 
-   │            schema app (Stored Procedure)  ← notes\_app chỉ EXECUTE
-
-   │            schema dbo (bảng dữ liệu)      ← DENY truy cập trực tiếp
-
-   │
-
-   └── Kho tệp đính kèm (ngoài web root, không thực thi; nội dung được mã hóa)
-
-Cùng một bộ `docker-compose` chạy trên laptop (`docker compose up`) và trên VPS. Laptop là phương án dự phòng khi VPS hoặc mạng gặp sự cố lúc báo cáo.
+`docker compose up --build` chạy stack demo trên máy nhóm. Các cổng frontend/SQL chỉ bind vào loopback; API không publish cổng host. Các file Compose/Nginx production riêng là cấu hình tham khảo cho triển khai tương lai, không cần chạy để hoàn thành đồ án.
 
 ### 3.2 Mô hình đe dọa (dùng cho báo cáo)
 
@@ -200,8 +188,9 @@ securenotes/
 
 ├─ README.md              (3 lệnh để chạy; ghi rõ tag baseline dễ tổn thương)
 
-├─ docs/                  roadmap.md, SECURITY\_SCORECARD.md, threat-model.md,
+├─ roadmap\_attw.md, SECURITY\_SCORECARD.md
 
+├─ docs/                  threat-model.md,
 │                         evidence/ (ảnh/log theo mã ca T01...), báo cáo
 
 ├─ db/                    001\_schema.sql, 002\_roles.sql, 003\_procedures.sql,
@@ -228,7 +217,7 @@ securenotes/
 
 │   └─ src/               api/, pages/, components/, styles/ (CSS thuần)
 
-├─ deploy/                docker-compose.yml, nginx.conf, .env.example
+├─ deploy/                cấu hình production tùy chọn (Compose/Nginx)
 
 └─ attack-lab/            payload, script brute-force, ghi chú chạy ZAP/sqlmap
 
@@ -288,7 +277,7 @@ Tổng ước lượng: khoảng **54 người-ngày** (khoảng 11 người-ng�
 2. **Baseline trước, gia cố sau.** P2 phải chạy tấn công và lưu bằng chứng "trước" xong thì P3 mới bắt đầu vá; vá trước là mất bằng chứng.  
 3. **Xây sớm các nền tảng dùng chung:** `AuditService` (bảng `audit_logs` chỉ ghi thêm), cơ chế session và `CryptoService`, vì nhiều giai đoạn sau gọi tới chúng.  
 4. **Tính năng dùng dữ liệu nhạy cảm đi sau mã hóa:** 2FA (lưu secret TOTP) và chia sẻ link (giải mã ghi chú để hiển thị) cần P4.  
-5. **Lên staging cloud sớm (S3), không đợi cuối:** lỗi redirect URI của Google, forwarded headers và TLS chỉ lộ ra trên môi trường gần thật.  
+5. **Tích hợp sớm trên máy nhóm:** chạy Compose và kiểm tra callback Google bằng redirect URI localhost; forwarded headers chỉ cần khi có reverse proxy. Không cần staging/cloud cho buổi demo.
 6. **Hết S4 là đóng băng tính năng:** S5 chỉ kiểm thử, vá lỗi và báo cáo.
 
 **Bảng phụ thuộc giữa các giai đoạn**
@@ -300,13 +289,13 @@ Tổng ước lượng: khoảng **54 người-ngày** (khoảng 11 người-ng�
 | P2 | P0, P1 | — | Kết thúc bằng bằng chứng "trước" và tag `v0-vulnerable` |
 | P3 | P2 (đã lưu bằng chứng "trước") | P4 | CAPTCHA và 2FA để sau P4 (S3) |
 | P4 | P1 (cột DEK, SP) | P3 | Phải xong trước P6, P7 và 2FA |
-| P5 | P3 (session, rate limit, `AuditService`) | P6, P7 | Phần Google Cloud (project, test user, client) làm sớm được; redirect URI cloud cần staging của P11 |
+| P5 | P3 (session, rate limit, `AuditService`) | P6, P7 | Cấu hình Google Cloud/test user chỉ cần nếu nhóm chọn demo Google; dùng redirect URI localhost |
 | P6 | P1, P3, P4 | P5, P7 | Cần `CryptoService` và DEK từ P4 để mã hóa tệp |
 | P7 | P3, P4 | P5, P6 | Làm phần xem/sửa chữ trước; phần file qua link làm sau khi P6 xong |
 | P8 | P3 (session, vai trò) | P5, P6, P7 | Móc ghi log cho Google, upload, chia sẻ thêm khi các tính năng đó xong |
-| P9 | Nửa staging của P11 | P8 | Nginx và TLS tới DB cần môi trường giống production |
+| P9 | P8 | P10 | Tập trung hardening và xác minh trên Compose local; TLS/chứng chỉ production là tùy chọn |
 | P10 | P3–P9 | — | Có thể chạy một vòng red team nhỏ cuối S2 cho các mục tầng 1 |
-| P11 | P0 (compose dev) | Các tính năng | Hai nửa: staging (S3) và chạy lại toàn bộ cùng phương án dự phòng (S5) |
+| P11 | P0 (compose dev) | Các tính năng | Chuẩn bị máy demo, dữ liệu mẫu, smoke tests và runbook; không triển khai cloud |
 | P12 | P10, P11 | P13 | Đóng băng code |
 | P13 | P3 trở đi | Tất cả | Mỗi người viết phần của mình ngay sau khi xong mảng đó |
 
@@ -315,7 +304,7 @@ Tổng ước lượng: khoảng **54 người-ngày** (khoảng 11 người-ng�
 | Mắt xích dễ trễ | Hậu quả | Cách giảm |
 | :---- | :---- | :---- |
 | C giao schema/SP trễ | A, B, D bị chặn | SP stub cùng chữ ký ngày 2; A là người dự phòng của C |
-| E dựng staging muộn | Lỗi Google redirect/TLS lộ ra sát hạn | Bắt đầu staging từ S3, thử đăng nhập Google trên staging ngay lần đầu; D là người dự phòng của E |
+| Không tích hợp trên máy demo sớm | Lỗi cấu hình/demo lộ ra sát hạn | Chạy stack trên máy nhóm từ sớm; thử callback localhost nếu có bật Google; D là người dự phòng của E |
 | Giao diện (D) là bề mặt lớn nhất | Trễ UI thì không demo được | D làm theo thứ tự trang: login → notes → settings → chia sẻ/đính kèm → admin, xong trang nào demo được trang đó; B là người dự phòng của D |
 
 **Thứ tự việc trong P3** (cùng số là làm song song được; bước sau cần bước trước)
@@ -335,7 +324,7 @@ Tổng ước lượng: khoảng **54 người-ngày** (khoảng 11 người-ng�
 
 **Thứ tự việc trong P5, P6, P7**
 
-- **P5 (Google):** (1) Google Cloud: project, màn hình đồng ý, test user, Client ID — làm sớm được, 0,5 ngày · (2) handler OIDC chạy trên localhost · (3) bảng `external_logins`, định danh bằng `sub`, kiểm tra `email_verified` · (4) quy tắc liên kết khi trùng email · (5) `returnUrl` nội bộ · (6) cấp session riêng và ghi log · (7) forwarded headers và redirect URI trên staging · (8) chạy T18–T21.  
+- **P5 (Google):** (1) Google Cloud: project, màn hình đồng ý, test user, Client ID nếu chọn demo Google · (2) handler OIDC chạy trên localhost · (3) bảng `external_logins`, định danh bằng `sub`, kiểm tra `email_verified` · (4) quy tắc liên kết khi trùng email · (5) `returnUrl` nội bộ · (6) cấp session riêng và ghi log · (7) redirect URI localhost, forwarded headers chỉ khi chạy qua proxy tin cậy · (8) chạy T18–T21.
 - **P6 (tệp đính kèm):** (1) bảng, SP và quota · (2) allowlist PDF/TXT/MD/PNG/JPEG, kiểm tra phần mở rộng, MIME, magic bytes và parser · (3) xác thực UTF-8 cho TXT/MD, giải mã rồi mã hóa lại PNG/JPEG, kiểm tra cấu trúc PDF · (4) mã hóa tệp bằng AES-GCM với DEK từ P4 · (5) lưu ngoài web root bằng tên ngẫu nhiên · (6) API liệt kê/tải xuống/xóa, kiểm tra chủ sở hữu và trả file dạng attachment · (7) dọn file, cập nhật quota nguyên tử, ghi log · (8) công tắc tắt nhanh · (9) chạy T11 và kiểm tra race T22.
 - **P7 (chia sẻ):** (1) bảng `share_links`, token chỉ lưu mã băm · (2) tạo và thu hồi (chỉ chủ ghi chú) · (3) endpoint xem, SP kiểm tra hạn/thu hồi, mọi lỗi trả cùng 404 · (4) trang `/s/:token` chỉ render text · (5) file qua link (sau P6) · (6) link quyền sửa, bắt buộc đăng nhập, chỉ sửa chữ · (7) rate limit, `no-store`, ghi log, công tắc tắt nhanh · (8) chạy T10.
 
@@ -344,7 +333,7 @@ Tổng ước lượng: khoảng **54 người-ngày** (khoảng 11 người-ng�
 | Ngày | A | B | C | D | E |
 | :---- | :---- | :---- | :---- | :---- | :---- |
 | 1 | Tạo repo, cấu trúc thư mục, `.gitignore`, bảo vệ nhánh `main`; khung API \+ `/api/health` | Cài môi trường; đọc mục 2 và 4; liệt kê các SP cần cho ghi chú và danh mục, đưa cho C | SQL Server (container) \+ DB; viết `001_schema.sql` | Khung React \+ Vite, proxy tới API; design tokens CSS | `docker-compose` dev (API \+ SQL Server), CI build, `gitleaks` ở pre-commit |
-| 2 | Soạn hợp đồng API (OpenAPI) từ mục 4.2 cho cả nhóm duyệt; bật HTTPS dev | Duyệt hợp đồng; viết endpoint ghi chú nháp bằng dữ liệu giả | Schema `app`, tài khoản `notes_migrator`/`notes_app`, vô hiệu `sa`; **đẩy SP stub cùng chữ ký** | Layout: Sidebar, TopBar, lưới thẻ với dữ liệu giả | Cả nhóm chạy `docker compose up` được trên máy mình (hỗ trợ từng người); tạo `attack-lab/` |
+| 2 | Soạn hợp đồng API (OpenAPI) từ mục 4.2 cho cả nhóm duyệt; HTTPS dev tùy chọn nếu chạy API trực tiếp | Duyệt hợp đồng; viết endpoint ghi chú nháp bằng dữ liệu giả | Schema `app`, tài khoản `notes_migrator`/`notes_app`, vô hiệu `sa`; **đẩy SP stub cùng chữ ký** | Layout: Sidebar, TopBar, lưới thẻ với dữ liệu giả | Cả nhóm chạy `docker compose up` được trên máy mình (hỗ trợ từng người); tạo `attack-lab/` |
 | 3 | Kết nối API → DB bằng `notes_app` (user-secrets); khung đăng ký/đăng nhập | Nối endpoint ghi chú với SP stub | SP thật: tạo user, lấy user theo email, CRUD ghi chú/danh mục; `GRANT EXECUTE`/`DENY` như P1 | Trang `/login`, NoteCard, NoteEditor (dữ liệu giả) | Chuyển T01–T25 thành checklist/issue; dựng mẫu thư mục `docs/evidence/` |
 | 4 | Đăng ký/đăng nhập chạy với SP thật (bản nháp, S1 sẽ cố ý để yếu) | CRUD ghi chú chạy với SP thật | SP ghi `audit_logs` (chỉ ghi thêm); tự kiểm tra "Xong khi" của P1 | Nối giao diện với API thật (đăng nhập, danh sách ghi chú) | Đưa `SECURITY_SCORECARD.md` vào `docs/`; viết README chạy bằng 3 lệnh |
 | 5 | **Cả nhóm:** kiểm tra "Xong khi" của P0 và P1; demo nội bộ 30 phút (đăng nhập → tạo ghi chú → thấy trên giao diện; `SELECT` thẳng bảng bằng `notes_app` bị từ chối); họp lập kế hoạch S1 |  |  |  |  |
@@ -355,12 +344,12 @@ Tổng ước lượng: khoảng **54 người-ngày** (khoảng 11 người-ng�
 | :---- | :---- |
 | S0 → S1 | "Xong khi" của P0 và P1; mỗi người chạy được dự án trên máy mình |
 | S1 → S2 | Ít nhất 5 tấn công thành công trên baseline, có bằng chứng "trước"; tag `v0-vulnerable` đã gắn |
-| S2 → S3 | Các tấn công của P2 đều bị chặn trên bản mới, có bằng chứng "sau"; `AuditService` chạy; KEK đã sao lưu tách biệt máy chủ |
-| S3 → S4 | Staging cloud chạy; đăng nhập Google thành công trên staging; T10, T11, T18–T21 đạt |
-| S4 → S5 | Đóng băng tính năng mới; hardening (P9) xong; mọi dòng MUST trong `SECURITY_SCORECARD.md` đã có vị trí code |
-| S5 → nộp | P12 xong; T01–T25 đạt trên môi trường dùng để báo cáo |
+| S2 → S3 | Các tấn công của P2 đều bị chặn trên bản mới, có bằng chứng "sau"; `AuditService` chạy; KEK có bản sao lưu an toàn |
+| S3 → S4 | Stack Compose trên máy nhóm chạy ổn; T10, T11 và các ca OAuth áp dụng đạt |
+| S4 → S5 | Đóng băng tính năng mới; hardening phù hợp local (P9) xong; mọi dòng MUST trong `SECURITY_SCORECARD.md` có vị trí code |
+| S5 → nộp | P12 xong; T01–T25 đạt trên máy demo |
 
-**Khi phải cắt tính năng, cắt kèm các phần phụ thuộc:** bỏ P6 (đính kèm) thì bỏ luôn phần file qua link ở P7 và dòng X-3 trong scorecard; bỏ P7 thì bỏ dòng X-2; bỏ P11 thì P5 chỉ cần redirect URI localhost và buổi báo cáo chạy trên laptop; bỏ P4 thì không làm 2FA và mất phần mã hóa của mục CSDL \#7 (chuỗi kết nối vẫn để ngoài code từ P1).
+**Khi phải cắt tính năng, cắt kèm các phần phụ thuộc:** bỏ P6 (đính kèm) thì bỏ luôn phần file qua link ở P7 và dòng X-3 trong scorecard; bỏ P7 thì bỏ dòng X-2; P11 là chạy demo local (không phải deploy) và không bị cắt; bỏ P4 thì không làm 2FA và mất phần mã hóa của mục CSDL \#7 (chuỗi kết nối vẫn để ngoài code từ P1).
 
 ### P0 — Chuẩn bị (2 ngày)
 
@@ -368,9 +357,9 @@ Tổng ước lượng: khoảng **54 người-ngày** (khoảng 11 người-ng�
 - [ ] Tạo repo, cấu trúc thư mục, `.gitignore` (loại `.env`, secrets, thư mục upload); quét secrets bằng `gitleaks` ở pre-commit/CI  
 - [ ] Chốt hợp đồng API (OpenAPI) và quy ước git (mục 10.4)  
 - [ ] Dựng khung: API "health" \+ React "hello", gọi API qua proxy của Vite  
-- [ ] Bật HTTPS khi phát triển: `dotnet dev-certs https --trust`
+- [ ] (Tùy chọn) Bật HTTPS cho API khi chạy trực tiếp trên host: `dotnet dev-certs https --trust`; Compose demo qua loopback dùng HTTP
 
-**Xong khi:** React gọi được `/api/health` qua HTTPS dev; cả nhóm chạy được dự án trên máy mình.
+**Xong khi:** React gọi được `/api/health` qua Vite proxy trên máy local; cả nhóm chạy được dự án trên máy mình. HTTPS dev chỉ cần nếu nhóm chọn chạy API trực tiếp qua HTTPS.
 
 ### P1 — CSDL nền tảng và phân quyền (3 ngày) · MUST
 
@@ -513,17 +502,17 @@ DENY SELECT, INSERT, UPDATE, DELETE ON SCHEMA::dbo TO notes\_app;
 
 ### P9 — Gia cố CSDL và máy chủ (3 ngày) · MUST
 
-- [ ] TLS cho kết nối DB: chứng chỉ cho SQL Server, `Encrypt=True;TrustServerCertificate=False` ở production · MUST  
-- [ ] TLS phía trình duyệt: chỉ TLS 1.2/1.3, chuyển hướng HTTP→HTTPS, HSTS · MUST  
-- [ ] SQL Server Audit hoặc Extended Events ghi đăng nhập thất bại và lệnh DDL · SHOULD  
+- [x] Mọi kết nối API→SQL bật mã hóa (`Encrypt=True`); cấu hình production riêng xác thực chứng chỉ với `TrustServerCertificate=False`. Demo local dùng chứng chỉ SQL local và không cần CA công khai · MUST
+- [ ] TLS phía trình duyệt: chỉ TLS 1.2/1.3, HTTP→HTTPS, HSTS là cấu hình production/tùy chọn; không bắt buộc khi demo trên `localhost` · MUST cho deployment public
+- [ ] SQL Server Audit hoặc Extended Events ghi đăng nhập thất bại và lệnh DDL · SHOULD; chỉ bật nếu có login sysadmin quản trị sẵn
 - [ ] TDE và sao lưu có mã hóa, sao lưu cả chứng chỉ · COULD  
-- [ ] Gia cố SQL Server: tắt tính năng không cần, chỉ lắng nghe mạng nội bộ, cập nhật bản vá, quyền thư mục dữ liệu  
-- [ ] Nginx: `autoindex off`, `server_tokens off`, `limit_except GET POST { deny all; }`, xóa trang mặc định  
-- [ ] Dịch vụ chạy bằng user không đặc quyền; firewall chỉ mở 80/443 (SSH chỉ dùng key, có giới hạn); container tự khởi động lại; log xoay vòng để không đầy ổ đĩa  
-- [ ] Phát hành bản Release (mã đã biên dịch), không có file `.bak/.old`, không phát hành source map, tắt Swagger/OpenAPI ở production  
-- [ ] Phân quyền thư mục: tài nguyên tĩnh chỉ đọc; thư mục upload đọc/ghi nhưng không thực thi
+- [x] SQL Server local chỉ publish `127.0.0.1:1433`; API không publish cổng host, frontend chỉ bind `127.0.0.1:5173`. Kiểm tra từ máy demo không truy cập DB/API qua cổng host công khai
+- [x] Có cấu hình Nginx production riêng (`autoindex off`, `server_tokens off`, chặn method thừa), nhưng không cần chạy Nginx cho demo local
+- [x] API chạy bằng user không đặc quyền; container có restart policy và volume log ứng dụng xoay vòng. Docker log rotation và Nginx unprivileged thuộc cấu hình production tùy chọn
+- [x] Build API Release và frontend production không phát hành source map/file `.bak/.old`; Swagger chỉ bật trong Development. Xác minh riêng trước demo nếu chuyển môi trường sang Production
+- [ ] Quyền thư mục upload không thực thi (`noexec`) là hardening bổ sung; file hiện lưu ngoài web root và API chạy non-root
 
-**Xong khi:** quét cổng từ bên ngoài chỉ thấy 80/443; bắt gói tin giữa API và DB không đọc được dữ liệu truy vấn (có thể so sánh trước/sau khi bật TLS bằng Wireshark).
+**Xong khi (phạm vi demo):** stack chạy ổn trên máy nhóm; host bind chỉ loopback như cấu hình Compose; DB/API không có cổng host public; SQL transport encryption bật; smoke tests P6/P7/P8 và test bảo mật áp dụng đều đạt. Không yêu cầu VPS, tên miền, public TLS, port scan Internet hoặc triển khai cloud. Các mục đó chỉ áp dụng nếu phạm vi triển khai thay đổi.
 
 ### P10 — Kiểm thử bảo mật và red team nội bộ (5 ngày) · MUST
 
@@ -534,22 +523,21 @@ DENY SELECT, INSERT, UPDATE, DELETE ON SCHEMA::dbo TO notes\_app;
 - [ ] Điền đủ cột "vị trí code", "ca kiểm thử", "bằng chứng" trong `SECURITY_SCORECARD.md`  
 - [ ] **Chỉ tấn công hệ thống do chính nhóm dựng và quản lý**
 
-### P11 — Triển khai cloud (3 ngày; bắt đầu staging sớm từ sprint 3\) · SHOULD (MUST nếu giảng viên kiểm thử trên cloud)
+### P11 — Chuẩn bị máy demo của nhóm (MUST)
 
-- [ ] VPS Linux đủ RAM cho SQL Server (tối thiểu khoảng 2 GB, nên 4 GB); kiểm tra chính sách của nhà cung cấp về kiểm thử xâm nhập (kiểm thử tải/DoS thường bị cấm)  
-- [ ] `docker-compose`: reverse proxy, API (kèm bản build React), SQL Server trong mạng nội bộ, **không publish cổng 1433**  
-- [ ] Tên miền thật \+ Let's Encrypt, bật HSTS (Google không chấp nhận redirect URI dùng IP thô, trừ localhost; nên kiểm tra lại quy định hiện tại)  
-- [ ] Cập nhật redirect URI trên Google Cloud Console cho tên miền; cấu hình forwarded headers  
-- [ ] Secrets qua biến môi trường/Docker secrets; `.env` không nằm trong git  
-- [ ] Sao lưu DB có mã hóa định kỳ và **thử khôi phục thật**  
-- [ ] Chạy lại bộ kiểm thử (đặc biệt TLS, header, cổng, đăng nhập Google) trên môi trường thật  
-- [ ] Giữ phương án dự phòng chạy local (`docker compose up`) trên laptop
+- [ ] Chọn máy nhóm sẽ dùng tại buổi kiểm thử; cài Docker/Compose và đảm bảo đủ RAM/dung lượng cho SQL Server, image và log
+- [ ] Chạy `./scripts/init-dev-env.sh`, giữ `.env` ngoài Git; lưu bản sao lưu KEK/mật khẩu DB an toàn để phục hồi nếu máy gặp sự cố
+- [ ] Chạy `docker compose up --build`; xác nhận frontend mở tại `http://localhost:5173`, health/ready API đạt, DB chỉ bind `127.0.0.1:1433`, API không publish host port
+- [ ] Chạy P6/P7/P8 smoke test và T01–T25 áp dụng trên đúng máy/môi trường sẽ demo; dọn tài khoản thử, chuẩn bị tài khoản demo riêng mật khẩu mạnh
+- [ ] Nếu demo Google: đăng ký callback `http://localhost:5173/signin-oidc`, cấu hình OAuth client/test users và kiểm tra login trên chính máy demo. Nếu không bật Google, chuẩn bị luồng email/mật khẩu
+- [ ] Chuẩn bị dữ liệu mẫu, log để trình bày, bản sao lưu phục hồi và runbook restart container; không dùng tài khoản hoặc dữ liệu cá nhân thật
+- [ ] Xác nhận không có service nào khác chiếm cổng 5173/1433; khóa màn hình/tắt ứng dụng không liên quan trong buổi kiểm thử
 
-**Xong khi:** truy cập HTTPS được từ điện thoại, đăng nhập Google chạy được, DB không truy cập được từ ngoài.
+**Xong khi:** nhóm khởi chạy được ứng dụng bằng hướng dẫn README trên máy demo; các kiểm thử cần chấm đạt; dịch vụ chỉ nghe loopback và có phương án phục hồi. VPS, domain, public TLS, firewall cloud và deploy không nằm trong phạm vi.
 
 ### P12 — Đóng băng và chuẩn bị buổi kiểm thử xâm nhập (2 ngày) · MUST
 
-Chi tiết ở mục 11\. Đóng băng code 2–3 ngày trước buổi báo cáo: chạy lại T01–T25, quét phụ thuộc và secrets, xóa dữ liệu/tài khoản demo yếu, sao lưu, kiểm tra chứng chỉ, tắt Swagger, in bảng bằng chứng, tập runbook.
+Chi tiết ở mục 11\. Đóng băng code 2–3 ngày trước buổi báo cáo: chạy lại T01–T25 trên máy demo, quét phụ thuộc và secrets, xóa dữ liệu/tài khoản demo yếu, sao lưu, xác nhận Compose và cổng loopback, tắt Swagger nếu chạy Production, in bảng bằng chứng, tập runbook.
 
 ### P13 — Báo cáo (5 ngày, viết dần từ P3) · MUST
 
@@ -578,14 +566,14 @@ Mỗi ca chạy trên baseline (kỳ vọng: tấn công thành công) và trên
 | T13 | Log | Dùng tài khoản app xóa/sửa `audit_logs`; sửa tay bằng tài khoản DBA | `DENY`, chuỗi băm phát hiện |
 | T14 | Dữ liệu | Dump DB baseline (băm không salt, nội dung rõ) so với bản gia cố | PBKDF2 \+ salt, AES-GCM |
 | T15 | CSDL | Dùng `notes_app` `SELECT` trực tiếp bảng; thử `xp_cmdshell` | `DENY`, quyền tối thiểu |
-| T16 | TLS | Bắt gói tin API↔DB và trình duyệt↔server trước/sau khi bật TLS | TLS |
-| T17 | Máy chủ | Gửi `PUT/DELETE/TRACE`; truy cập thư mục để liệt kê file; xem header | Cấu hình Nginx |
+| T16 | TLS | Kiểm tra SQL connection string và `encrypt_option`; browser TLS chỉ kiểm tra nếu demo production overlay | Encrypt SQL transport; TLS web tùy chọn |
+| T17 | Máy chủ | Gửi `PUT/DELETE/TRACE` tới API local; truy cập đường dẫn dotfiles/dir listing; xem headers | API/Compose local; Nginx chỉ cho production overlay |
 | T18 | OAuth | Callback thiếu hoặc sai `state` | Kiểm tra `state` của handler |
 | T19 | OAuth | Dùng lại `code`/callback cũ | PKCE, `code` dùng một lần |
 | T20 | OAuth | `returnUrl=https://evil.com` | Chỉ nhận đường dẫn nội bộ |
 | T21 | OAuth | Đăng ký bằng mật khẩu trước với email của nạn nhân, rồi đăng nhập Google bằng email đó | Không tự liên kết khi trùng email; khóa bằng `sub` |
 | T22 | Race | Tải lên song song vượt hạn mức; đăng nhập đồng thời hai nơi | Xử lý nguyên tử trong SP |
-| T23 | Do thám | Tìm banner/`X-Powered-By`, Swagger/OpenAPI, stack trace, `.git`, source map, file `.bak`, trang mặc định | Cấu hình production, bản Release |
+| T23 | Do thám | Kiểm tra header, Swagger theo environment, lỗi chi tiết, `.git`, source map, file `.bak` và trang mặc định trên máy demo | API/Compose local; production build tùy chọn |
 | T24 | 2FA | Dò mã TOTP; dùng lại mã đã dùng | Rate limit bước 2FA, chặn dùng lại mã |
 | T25 | Trình duyệt | Nhúng trang vào iframe (clickjacking); kiểm tra CSP, HSTS, Referrer-Policy | `frame-ancestors`, header bảo mật |
 
@@ -600,11 +588,11 @@ Mỗi ca chạy trên baseline (kỳ vọng: tấn công thành công) và trên
 3. Thiết kế hệ thống: kiến trúc, CSDL, các quyết định D1–D12  
 4. Cài đặt bảo mật, trình bày **theo đúng 3 phần của đề** (mục 2 là khung)  
 5. Kiểm thử: bảng T01–T25 với bằng chứng trước/sau  
-6. Triển khai  
-7. Hạn chế đã biết và hướng phát triển (ví dụ chưa chống DoS, chạy một VPS, chưa gửi mail xác minh)  
+6. Cài đặt/chạy demo trên máy nhóm; cấu hình production chỉ nêu như hướng phát triển nếu có dùng
+7. Hạn chế đã biết và hướng phát triển (ví dụ chưa chống DoS, chưa triển khai public, chưa gửi mail xác minh)
 8. Phụ lục: schema, danh sách endpoint, cấu hình, `SECURITY_SCORECARD.md`
 
-**Kịch bản demo (10–15 phút, mỗi người \~3 phút):** tấn công baseline → chạy lại trên bản gia cố → mở DB cho thấy dữ liệu mã hóa và `DENY` → thử sửa log → bắt gói tin TLS. Phân công người trình bày ở mục 10.5.
+**Kịch bản demo (10–15 phút, mỗi người \~3 phút):** chạy stack trên máy nhóm → trình diễn các luồng ứng dụng → kiểm tra tấn công/phân quyền → mở DB cho thấy dữ liệu mã hóa và `DENY` → kiểm tra audit/log. Không cần VPS hoặc bắt gói tin qua Internet; nếu cần minh chứng DB transport encryption, dùng cấu hình/kết nối bên trong Compose. Phân công người trình bày ở mục 10.5.
 
 ---
 
@@ -612,17 +600,17 @@ Mỗi ca chạy trên baseline (kỳ vọng: tấn công thành công) và trên
 
 | Rủi ro | Cách giảm |
 | :---- | :---- |
-| SQL Server cần nhiều RAM, VPS rẻ không đủ | Chọn VPS ≥ 2 GB; nếu không có, chạy trên laptop bằng cùng bộ compose và ghi rõ trong báo cáo |
+| Máy demo thiếu RAM/dung lượng hoặc Docker dừng | Chạy thử sớm trên đúng máy, giữ đủ dung lượng image/log và sao lưu `.env`/KEK an toàn |
 | Làm quá nhiều tính năng, không kịp | Bám mức ưu tiên và mục 9; tính năng làm dở nguy hiểm hơn không làm |
 | Mất khóa mã hóa KEK | Sao lưu KEK tách biệt máy chủ, thử khôi phục; **không xoay KEK vào phút chót** |
 | CSP làm hỏng giao diện khi phát triển với Vite | Bật CSP chặt trên bản build; ở chế độ dev dùng chính sách nới và ghi chú rõ |
-| `TrustServerCertificate=True` để chạy cho tiện | Chỉ dùng khi dev; production phải `False` và cài chứng chỉ đúng |
-| Cookie `Secure`/`SameSite` lỗi khi chạy local | Dùng HTTPS dev (`dotnet dev-certs`), chạy cùng origin qua proxy |
-| Bản baseline lỡ bị deploy | Tag riêng, không có trong `deploy/`, chỉ chạy local |
+| `TrustServerCertificate=True` ở cấu hình demo | Chỉ chấp nhận kết nối local trong mạng Docker; cấu hình production tùy chọn yêu cầu `False` và chứng chỉ được xác thực |
+| Cookie `Secure`/`SameSite` lỗi khi chạy local | Demo localhost dùng cấu hình Development; nếu chuyển sang HTTPS/Production thì kiểm tra lại Secure cookie và origin |
+| Bản baseline lỡ được đưa vào demo | Không dùng bản baseline yếu; chỉ chạy mã hiện tại trên máy nhóm |
 | Giảng viên không thể đăng nhập Google (Gmail chưa nằm trong test user) | Hỏi sớm Gmail của giảng viên và thêm vào Google Cloud Console; dự phòng bằng tài khoản mật khẩu mẫu |
-| Redirect URI sai khi chuyển từ local sang cloud (`redirect_uri_mismatch`) | Dựng staging cloud sớm, kiểm tra forwarded headers và đăng ký đúng URI |
+| Redirect URI Google sai | Nếu demo Google, đăng ký callback localhost đúng với cấu hình và kiểm thử trên máy demo |
 | Rate limit/khóa tài khoản chặn luôn giảng viên (nhiều người chung một IP) | Ngưỡng không quá chặt, không tự động cấm IP vĩnh viễn, có runbook mở khóa nhanh (mục 11\) |
-| VPS bị nhà cung cấp khóa vì lưu lượng tấn công | Đọc chính sách nhà cung cấp; coi DoS là ngoài phạm vi; sẵn phương án chạy local |
+| Giảng viên không truy cập được app trên máy demo | Chuẩn bị sẵn Docker/image, kiểm tra trước buổi demo và có máy nhóm dự phòng; app chỉ bind loopback |
 | Tệp đính kèm gây cạn dung lượng hoặc có nội dung độc hại | Giới hạn kích thước/số lượng/quota, xác thực nội dung theo định dạng, mã hóa lại ảnh, lưu ngoài web root, tắt nhanh tính năng |
 | Tìm ra lỗ hổng thật ngay trong buổi kiểm thử | Công tắc tắt nhanh tính năng, thừa nhận, chỉ ra log phát hiện và cách khắc phục |
 
@@ -630,7 +618,7 @@ Mỗi ca chạy trên baseline (kỳ vọng: tấn công thành công) và trên
 
 ## 9\. Lộ trình rút gọn khi thiếu thời gian (≈ 40 người-ngày)
 
-Giữ: P0, P1, P2, P3, P4, P5 (Google, vì là yêu cầu của nhóm), P9 phần MUST, P10, P12, P13. Cắt: P6 (tệp đính kèm PDF/TXT/MD/PNG/JPEG), P7 (chia sẻ), P8 phần admin, P11 (chạy demo trên laptop), CAPTCHA, 2FA, TDE, chuỗi băm log.
+Giữ: P0, P1, P2, P3, P4, P5 (Google nếu là yêu cầu của nhóm), P9 phần MUST áp dụng cho local, P10, P11 (chuẩn bị máy demo), P12, P13. Cắt: P6 (tệp đính kèm PDF/TXT/MD/PNG/JPEG), P7 (chia sẻ), P8 phần admin, CAPTCHA, 2FA, TDE, chuỗi băm log.
 
 Bản rút gọn vẫn phủ: tấn công 1–4 và 7, biện pháp mục 1–4, 6, 7, CSDL \#1–\#10 (trừ TDE).
 
@@ -652,7 +640,7 @@ Bản rút gọn vẫn phủ: tấn công 1–4 và 7, biện pháp mục 1–4,
 | **B** | Backend nghiệp vụ | ........ | CRUD ghi chú, danh mục, ghi chú con, tìm kiếm; chia sẻ link; API tệp đính kèm PDF/TXT/MD/PNG/JPEG; công tắc tắt nhanh | Tấn công 5; biện pháp mục 5 (phần upload và bộ lọc file) | E |
 | **C** | CSDL và mật mã | ........ | Schema, Stored Procedure, tài khoản/phân quyền; AES-GCM, KEK/DEK; `audit_logs` (+ chuỗi băm), SQL Server Audit, TDE | Tấn công 3, 7; biện pháp mục 4, 7; CSDL \#1, \#2, \#3, \#4, \#7, \#10 | A |
 | **D** | Frontend | ........ | React \+ CSS thuần theo FlexiNote: sidebar, lưới thẻ, editor, Settings, chia sẻ, giao diện tệp đính kèm, trang admin, nút Google; client gắn CSRF token; render an toàn | Tấn công 1 (XSS); biện pháp mục 6 (phần CSP phía client) | B |
-| **E** | DevOps và kiểm thử bảo mật | ........ | Docker, Nginx, HTTPS, firewall, hardening; CSRF/Origin \+ security headers; log file; attack-lab; ZAP/sqlmap; bằng chứng; deploy; ghép báo cáo; `SECURITY_SCORECARD.md` | Tấn công 2, 6; biện pháp mục 3, 5 (phần máy chủ), 6; CSDL \#5, \#6, \#8, \#9 | D |
+| **E** | DevOps và kiểm thử bảo mật | ........ | Docker local, hardening áp dụng cho demo; CSRF/Origin \+ security headers; log file; attack-lab; ZAP/sqlmap; bằng chứng; ghép báo cáo; `SECURITY_SCORECARD.md`; production config là tùy chọn | Tấn công 2, 6; biện pháp mục 3, 5 (phần máy chủ), 6; CSDL \#5, \#6, \#8, \#9 | D |
 
 Khối lượng mỗi người khoảng **11–13 người-ngày**, đã tính review chéo và tích hợp. Chọn người theo thế mạnh: A vững backend nhất, C thích SQL Server, D mạnh giao diện, E quen Linux/Docker.
 
@@ -665,11 +653,11 @@ Mỗi sprint khoảng 1 tuần, co giãn theo hạn nộp.
 | **S0 Nền móng** (P0, P1) | Repo, khung API, hợp đồng API, quy ước git | Viết SP/endpoint ghi chú nháp theo schema | Schema, tài khoản DB, schema `app`, SP mẫu | Khung React/Vite, màu và layout, dùng dữ liệu giả | `docker-compose` dev, CI, quét secrets |
 | **S1 Baseline** (P2) | Đăng nhập cơ bản (cố ý yếu) | CRUD ghi chú, danh mục, tìm kiếm | SP người dùng/ghi chú; một SP có SQL động | Trang đăng nhập, lưới thẻ, editor; xem trước dùng `dangerouslySetInnerHTML` | attack-lab, tag `v0-vulnerable`, bằng chứng "trước" |
 | **S2 Gia cố lõi** (P3, P4) | PBKDF2, khóa tạm, rate limit, session, kết thúc phiên | Kiểm tra chủ sở hữu, whitelist trường, tìm kiếm tầng app | SP an toàn (`sp_executesql`), AES-GCM, KEK/DEK, chuỗi kết nối ngoài code, `AuditService` tối thiểu (`audit_logs` chỉ ghi thêm, `DENY UPDATE/DELETE`) | Bỏ `dangerouslySetInnerHTML`, whitelist URL, gắn CSRF token | CSRF/Origin, security headers, ẩn banner, chạy lại tấn công "sau" |
-| **S3 Mở rộng I** (P5, P6, P7) | Google OIDC, liên kết tài khoản, 2FA, CAPTCHA | Đính kèm PDF/TXT/MD/PNG/JPEG; chia sẻ link (backend) | Bảng `external_logins`, `share_links`, `attachments` \+ SP | Nút Google, UI tệp đính kèm, ShareDialog, trang `/s/:token` | Staging cloud: VPS, Docker prod, Nginx, HTTPS, redirect URI Google |
-| **S4 Mở rộng II và hardening** (P8, P9) | RBAC admin backend, bắt buộc 2FA admin | Công tắc tắt nhanh, xử lý nguyên tử/race | Chuỗi băm cho `audit_logs`, TLS DB, SQL Server Audit, TDE nếu kịp | Settings (phiên, 2FA, liên kết Google), trang admin | Hardening Nginx/máy chủ, firewall, log xoay vòng, chặn method |
-| **S5 Kiểm thử, đóng băng, báo cáo** (P10, P12, P13) | Red team mảng của C; hiệu đính báo cáo; kịch bản demo | Red team mảng của D; sửa lỗi | Red team mảng của A; sửa lỗi | Red team mảng của E; sửa lỗi | Red team mảng của B; chạy T01–T25 và ZAP/sqlmap trên cloud; đóng băng; scorecard |
+| **S3 Mở rộng I** (P5, P6, P7) | Google OIDC, liên kết tài khoản, 2FA, CAPTCHA | Đính kèm PDF/TXT/MD/PNG/JPEG; chia sẻ link (backend) | Bảng `external_logins`, `share_links`, `attachments` \+ SP | Nút Google, UI tệp đính kèm, ShareDialog, trang `/s/:token` | Tích hợp sớm trên Compose local; callback localhost nếu bật Google |
+| **S4 Mở rộng II và hardening** (P8, P9) | RBAC admin backend, bắt buộc 2FA admin | Công tắc tắt nhanh, xử lý nguyên tử/race | Chuỗi băm cho `audit_logs`, TLS DB, SQL Server Audit, TDE nếu kịp | Settings (phiên, 2FA, liên kết Google), trang admin | Hardening Compose local, log, dependency scan; production Nginx là tùy chọn |
+| **S5 Kiểm thử, đóng băng, báo cáo** (P10, P12, P13) | Red team mảng của C; hiệu đính báo cáo; kịch bản demo | Red team mảng của D; sửa lỗi | Red team mảng của A; sửa lỗi | Red team mảng của E; sửa lỗi | Red team mảng của B; chạy T01–T25 và smoke tests trên máy nhóm; đóng băng; scorecard |
 
-Mọi người viết phần báo cáo của mình từ S2 trở đi; E ghép, A hiệu đính. Dựng staging cloud từ S3 để phát hiện lỗi cấu hình (redirect URI, forwarded headers) sớm.
+Mọi người viết phần báo cáo của mình từ S2 trở đi; E ghép, A hiệu đính. Chạy stack trên đúng máy demo từ S3 để phát hiện sớm lỗi cấu hình, cổng và dữ liệu.
 
 ### 10.4 Quy tắc làm việc chung
 
@@ -697,13 +685,9 @@ Mọi người viết phần báo cáo của mình từ S2 trở đi; E ghép, A
 
 ### 11.1 Giả định và cần hỏi giảng viên
 
-Giả định xấu nhất để chuẩn bị: kiểm thử **trên bản cloud**, **white-box**, loại tấn công không công bố, chấm theo số lỗi chặn được. Chỉ cần hỏi giảng viên **hai điều**:
+Giảng viên đã xác nhận sẽ kiểm thử/demo **trên máy của nhóm**, không yêu cầu deploy. Chuẩn bị theo môi trường Compose local và kiểm thử **white-box**, loại tấn công không công bố, chấm theo số lỗi chặn được.
 
-1. Kiểm thử trên **cloud hay trên máy của nhóm**?  
-   - **Cloud:** website deploy trên VPS có tên miền và HTTPS, giảng viên truy cập qua internet (cần P11).  
-   - **Máy nhóm (localhost):** website chạy trên laptop bằng `docker compose up`, giảng viên kiểm thử ngay tại buổi báo cáo; không cần VPS và tên miền.  
-   - Nếu giảng viên không chỉ rõ: ưu tiên cloud và giữ bản local làm dự phòng (cùng một bộ compose).  
-2. Giảng viên có muốn thử **đăng nhập Google** không? Đây là **cấu hình phía Google, không phải code**; không làm API hay nhánh code riêng cho việc test (D10).
+Không cần hỏi lại việc cloud hay máy nhóm. Nếu cần chốt thêm, hỏi giảng viên có muốn thử **đăng nhập Google** không. Đây là cấu hình phía Google, không cần nhánh code riêng (D10); login mật khẩu là phương án demo độc lập.
 
 | Tình huống | Cách xử lý |
 | :---- | :---- |
@@ -713,7 +697,7 @@ Giả định xấu nhất để chuẩn bị: kiểm thử **trên bản cloud*
 
 Giảng viên vẫn thử được các tấn công vào luồng OAuth (`state`, `redirect_uri`, dùng lại `code`) mà không cần đăng nhập Google thành công, vì cơ chế chặn nằm trong code và cấu hình mà họ đọc được (T18–T21).
 
-Hỏi sau, gần ngày báo cáo: IP/khung giờ kiểm thử (nhiều người chung IP trường có thể bị rate limit chặn nhầm).
+Chạy thử rate limit trên máy demo trước ngày báo cáo; nếu nhiều người lần lượt kiểm thử cùng máy, chuẩn bị runbook mở khóa nhanh nhưng không tắt bảo vệ.
 
 **Không làm:** endpoint hay chế độ "test" tắt bảo vệ, tự động cấm IP vĩnh viễn, thêm tính năng để server tự tải URL (SSRF).
 
@@ -722,7 +706,7 @@ Hỏi sau, gần ngày báo cáo: IP/khung giờ kiểm thử (nhiều người 
 | Nhóm | Cần kiểm tra trước khi nộp |
 | :---- | :---- |
 | Do thám | Không lộ header `Server`/`X-Powered-By`; Swagger/OpenAPI và trang lỗi chi tiết tắt ở production; không lộ `.git`, source map, `.bak`, trang mặc định |
-| Mạng và cấu hình | `nmap` chỉ thấy 80/443 (SSH hạn chế, key-only), không thấy 1433; TLS chỉ 1.2/1.3; HTTP→HTTPS và HSTS; `frame-ancestors`; không có CORS wildcard; cờ cookie đúng |
+| Mạng và cấu hình | Xác nhận frontend/DB chỉ bind loopback, API không publish host port; không yêu cầu public 80/443, SSH, domain, HTTP→HTTPS hoặc HSTS cho localhost; kiểm tra security headers, `frame-ancestors`, CORS và cookie |
 | Xác thực | Không lộ email nào tồn tại qua lỗi hoặc thời gian phản hồi; rate limit cả bước 2FA; không dùng lại mã TOTP; đăng xuất xong dùng lại cookie cũ phải thất bại; tham số OAuth (`state`, `redirect_uri`); xóa mọi tài khoản mật khẩu yếu dùng để demo |
 | Phân quyền | IDOR ở ghi chú, file, link chia sẻ, trang admin (thử bằng hai tài khoản); mass assignment |
 | Race condition | Tải lên song song vượt hạn mức, đăng nhập đồng thời hai nơi: xử lý nguyên tử trong SP |
@@ -736,15 +720,17 @@ Hỏi sau, gần ngày báo cáo: IP/khung giờ kiểm thử (nhiều người 
 - [ ] `gitleaks` sạch; không còn secrets trong lịch sử git  
 - [ ] Đổi mật khẩu DB, client secret OAuth, các secret khác nếu từng lộ (**không** xoay KEK)  
 - [ ] Xóa dữ liệu và tài khoản demo yếu; sao lưu DB  
-- [ ] Chứng chỉ TLS còn hạn; `ASPNETCORE_ENVIRONMENT=Production`; Swagger tắt  
+- [ ] Đúng máy nhóm đã chạy thử; `docker compose up --build` và health/ready thành công; cổng chỉ bind loopback
+- [ ] `.env` hiện diện, không bị commit/chia sẻ; KEK có bản sao lưu an toàn; tài khoản demo dùng mật khẩu mạnh
+- [ ] Nếu bật Google: callback localhost/test user đã kiểm tra; nếu không, luồng email/mật khẩu sẵn sàng
 - [ ] Gmail của giảng viên đã có trong test user (nếu họ muốn thử Google); tài khoản mẫu chuẩn bị sẵn  
 - [ ] Mã nguồn có chú thích `[Phần x #y]` tại các chỗ thực hiện biện pháp  
 - [ ] README chạy được bằng 3 lệnh; tag `v0-vulnerable` ghi chú rõ  
-- [ ] `SECURITY_SCORECARD.md` điền đủ; phương án dự phòng chạy local sẵn sàng
+- [ ] `SECURITY_SCORECARD.md` điền đủ; không phụ thuộc VPS/domain/mạng Internet ngoài phần OAuth Google (nếu demo luồng đó)
 
 ### 11.4 Runbook trong buổi kiểm thử
 
-- **Site sập:** khởi động lại container; chuyển sang bản chạy local trên laptop.  
+- **Ứng dụng không khởi động:** chạy lại `docker compose ps`/logs, khởi động lại stack trên máy demo; giữ bản sao lưu cấu hình và image đã build.
 - **Giảng viên bị rate limit/khóa:** nới ngưỡng bằng cấu hình hoặc mở khóa trong dưới một phút. Không tắt hẳn bảo vệ.  
 - **Dữ liệu bị bẩn:** chạy script đưa về dữ liệu mẫu.  
 - **Giảng viên tìm ra lỗi thật:** tắt tính năng bằng công tắc, thừa nhận, chỉ ra dòng log đã phát hiện được và cách khắc phục.
@@ -784,6 +770,7 @@ gitleaks detect \--source .
 ## Lịch sử thay đổi
 
 - **v4:** thêm mục "Thứ tự thực hiện và phụ thuộc" ở đầu mục 5 (nguyên tắc thứ tự, bảng phụ thuộc, đường găng, thứ tự việc trong P3/P5/P6/P7, kế hoạch 5 ngày đầu, cổng kiểm tra giữa các sprint, cách cắt tính năng kèm phụ thuộc); dựng `AuditService` tối thiểu sớm ở S0–S2 (cập nhật ma trận sprint và P8).  
+- **v5:** cập nhật phạm vi theo xác nhận giảng viên demo trên máy nhóm; thay P11 cloud bằng chuẩn bị máy demo local; phân loại HTTPS public/Nginx/production overlay là tùy chọn; đồng bộ P9, scorecard, kiến trúc và runbook với loopback/local.
 - **v3:** làm rõ định nghĩa cloud/localhost và ba tình huống test user của Google (mục 11.1), thêm thứ tự lấy điểm theo tầng (mục 2), thêm quy ước chú thích bảo mật trong mã (mục 1.1, 10.4, 11.3), tạo `SECURITY_SCORECARD.md`.  
 - **v2:** thêm đăng nhập Google (OIDC), bỏ tạm mail chào mừng/xác minh email, thêm phân công nhóm 5 người (mục 10), thêm chuẩn bị buổi kiểm thử xâm nhập white-box (mục 11), nâng mục tiêu lên phủ đủ 7/7 tấn công, 7/7 biện pháp, 10/10 lỗ hổng CSDL, mở rộng ca kiểm thử lên T01–T25, thêm `SECURITY_SCORECARD.md`, đánh số lại các giai đoạn P0–P13.  
 - **v1:** bản đầu tiên (P0–P11).

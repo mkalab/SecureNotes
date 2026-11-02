@@ -21,7 +21,7 @@ public sealed class GoogleAuthController(
 {
     [HttpGet("google")]
     [AllowAnonymous]
-    [EnableRateLimiting("auth")]
+    [EnableRateLimiting("auth-google")]
     public IActionResult Login([FromQuery] string? returnUrl)
     {
         var safeReturnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl! : "/";
@@ -37,7 +37,7 @@ public sealed class GoogleAuthController(
 
     [HttpPost("google/link")]
     [Authorize]
-    [EnableRateLimiting("auth")]
+    [EnableRateLimiting("auth-google")]
     public async Task<IActionResult> Link([FromForm] GoogleLinkRequest request, CancellationToken cancellationToken)
     {
         if (!GoogleOidcOptions.IsConfigured(configuration))
